@@ -218,7 +218,7 @@ class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("設定")
-        self.geometry("400x350")  # 高さを少し増やす
+        self.geometry("400x400")  # 高さを増やす
         self.transient(parent)
         self.grab_set()
         
@@ -237,10 +237,15 @@ class SettingsDialog(tk.Toplevel):
 
     def _create_widgets(self):
         """設定ダイアログのウィジェット作成"""
-        # API Key設定
+        # OpenAI API Key設定
         self.api_key_var = tk.StringVar(value=self.config.openai_api_key or "")
         self.api_key_frame = ttk.LabelFrame(self, text="OpenAI API Key", padding=5)
         self.api_key_entry = ttk.Entry(self.api_key_frame, textvariable=self.api_key_var, show="*")
+        
+        # Gemini API Key設定
+        self.gemini_api_key_var = tk.StringVar(value=self.config.gemini_api_key or "")
+        self.gemini_api_key_frame = ttk.LabelFrame(self, text="Gemini API Key", padding=5)
+        self.gemini_api_key_entry = ttk.Entry(self.gemini_api_key_frame, textvariable=self.gemini_api_key_var, show="*")
         
         # 書き起こし方式設定
         self.transcription_frame = ttk.LabelFrame(self, text="書き起こし方式", padding=5)
@@ -255,6 +260,12 @@ class SettingsDialog(tk.Toplevel):
             self.transcription_frame,
             text="GPT-4 Audio方式（一括処理）",
             value="gpt4_audio",
+            variable=self.transcription_var
+        )
+        self.transcription_gemini = ttk.Radiobutton(
+            self.transcription_frame,
+            text="Gemini方式（一括処理）",
+            value="gemini",
             variable=self.transcription_var
         )
         
@@ -293,14 +304,19 @@ class SettingsDialog(tk.Toplevel):
 
     def _setup_layout(self):
         """設定ダイアログのレイアウト設定"""
-        # API Key設定
+        # OpenAI API Key設定
         self.api_key_frame.pack(fill=tk.X, padx=10, pady=5)
         self.api_key_entry.pack(fill=tk.X, padx=5)
+        
+        # Gemini API Key設定
+        self.gemini_api_key_frame.pack(fill=tk.X, padx=10, pady=5)
+        self.gemini_api_key_entry.pack(fill=tk.X, padx=5)
         
         # 書き起こし方式設定
         self.transcription_frame.pack(fill=tk.X, padx=10, pady=5)
         self.transcription_whisper.pack(fill=tk.X, padx=5, pady=2)
         self.transcription_gpt4audio.pack(fill=tk.X, padx=5, pady=2)
+        self.transcription_gemini.pack(fill=tk.X, padx=5, pady=2)
         
         # 出力ディレクトリ設定
         self.output_dir_frame.pack(fill=tk.X, padx=10, pady=5)
@@ -328,6 +344,7 @@ class SettingsDialog(tk.Toplevel):
             # 一般設定の保存
             config_manager.update_config(
                 openai_api_key=self.api_key_var.get(),
+                gemini_api_key=self.gemini_api_key_var.get(),
                 output_base_dir=self.output_dir_var.get(),
                 debug_mode=self.debug_var.get()
             )

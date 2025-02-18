@@ -14,6 +14,7 @@ class ConfigError(Exception):
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""
     openai_api_key: Optional[str] = None
+    gemini_api_key: Optional[str] = None
     output_base_dir: str = "output"
     debug_mode: bool = False
     log_level: str = "INFO"

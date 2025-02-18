@@ -5,6 +5,7 @@ import datetime
 import json
 from typing import Dict, Any, Literal
 from ..utils.Common_OpenAIAPI import generate_transcribe_from_audio, generate_chat_response, generate_audio_chat_response, APIError
+from ..utils.gemini_api import GeminiAPI
 import sys
 
 logger = logging.getLogger(__name__)
@@ -20,8 +21,19 @@ class TranscriptionService:
         logger.info(f"出力ディレクトリを作成/確認: {self.output_dir}")
         
         # 設定の読み込み
-        self.transcription_method = self._load_config(config_path)
+        self.config = self._load_config(config_path)
+        self.transcription_method = self.config.get("transcription", {}).get("method", "gpt4_audio")
         logger.info(f"書き起こし方式: {self.transcription_method}")
+        
+        # Gemini APIの初期化（Gemini方式が選択されている場合）
+        if self.transcription_method == "gemini":
+            # 環境変数を優先、なければ設定ファイルから
+            gemini_api_key = os.getenv("GOOGLE_API_KEY") or self.config.get("gemini", {}).get("api_key")
+            if not gemini_api_key:
+                logger.error("Gemini API keyが設定されていません")
+                raise TranscriptionError("Gemini API keyが設定されていません")
+            self.gemini_api = GeminiAPI(gemini_api_key)
+            logger.info("Gemini APIを初期化しました")
         
         # プロンプトの読み込み
         if getattr(sys, 'frozen', False):
@@ -59,21 +71,21 @@ class TranscriptionService:
             logger.error(f"プロンプトファイルの読み込み中にエラー: {str(e)}")
             raise TranscriptionError(f"プロンプトファイルの読み込みに失敗しました: {str(e)}")
 
-    def _load_config(self, config_path: str) -> Literal["whisper_gpt4", "gpt4_audio"]:
-        """設定ファイルから書き起こし方式を読み込む"""
+    def _load_config(self, config_path: str) -> Dict[str, Any]:
+        """設定ファイルから設定を読み込む"""
         try:
             config_file = pathlib.Path(config_path)
             if not config_file.exists():
-                logger.info("設定ファイルが見つかりません。デフォルトの書き起こし方式を使用します。")
-                return "gpt4_audio"
+                logger.info("設定ファイルが見つかりません。デフォルトの設定を使用します。")
+                return {"transcription": {"method": "gpt4_audio"}}
             
             try:
                 with open(config_file, "r", encoding="utf-8") as f:
                     config_text = f.read().strip()
                     # 空ファイルチェック
                     if not config_text:
-                        logger.warning("設定ファイルが空です。デフォルトの書き起こし方式を使用します。")
-                        return "gpt4_audio"
+                        logger.warning("設定ファイルが空です。デフォルトの設定を使用します。")
+                        return {"transcription": {"method": "gpt4_audio"}}
                     
                     # 文字列を整形して余分な文字を削除
                     config_text = config_text.replace('\n', '').replace('\r', '').strip()
@@ -83,23 +95,23 @@ class TranscriptionService:
                     
                     config = json.loads(config_text)
             except json.JSONDecodeError as e:
-                logger.warning(f"設定ファイルのJSONパースに失敗しました: {str(e)}。デフォルトの書き起こし方式を使用します。")
-                return "gpt4_audio"
+                logger.warning(f"設定ファイルのJSONパースに失敗しました: {str(e)}。デフォルトの設定を使用します。")
+                return {"transcription": {"method": "gpt4_audio"}}
             except Exception as e:
-                logger.warning(f"設定ファイルの読み込み中に予期せぬエラーが発生しました: {str(e)}。デフォルトの書き起こし方式を使用します。")
-                return "gpt4_audio"
+                logger.warning(f"設定ファイルの読み込み中に予期せぬエラーが発生しました: {str(e)}。デフォルトの設定を使用します。")
+                return {"transcription": {"method": "gpt4_audio"}}
             
             method = config.get("transcription", {}).get("method", "gpt4_audio")
-            if method not in ["whisper_gpt4", "gpt4_audio"]:
+            if method not in ["whisper_gpt4", "gpt4_audio", "gemini"]:
                 logger.warning(f"無効な書き起こし方式が指定されています: {method}")
                 logger.info("デフォルトの書き起こし方式を使用します。")
-                return "gpt4_audio"
+                config["transcription"]["method"] = "gpt4_audio"
             
-            return method
+            return config
             
         except Exception as e:
             logger.error(f"設定ファイルの処理中に予期せぬエラーが発生しました: {str(e)}")
-            return "gpt4_audio"
+            return {"transcription": {"method": "gpt4_audio"}}
 
     def process_audio(self, audio_file: pathlib.Path, additional_prompt: str = "") -> Dict[str, Any]:
         """音声ファイルの書き起こし処理を実行"""
@@ -114,6 +126,8 @@ class TranscriptionService:
 
             if self.transcription_method == "whisper_gpt4":
                 return self._process_with_whisper_gpt4(audio_file, additional_prompt, timestamp)
+            elif self.transcription_method == "gemini":
+                return self._process_with_gemini(audio_file, timestamp)
             else:  # gpt4_audio
                 return self._process_with_gpt4_audio(audio_file, timestamp)
             
@@ -207,6 +221,43 @@ class TranscriptionService:
             "formatted_file": formatted_output_path,
             "timestamp": timestamp
         }
+
+    def _process_with_gemini(self, audio_file: pathlib.Path, timestamp: str) -> Dict[str, Any]:
+        """Gemini方式での書き起こし処理"""
+        logger.info("Geminiで音声認識・整形を開始")
+        
+        try:
+            # 音声ファイルを文字列に変換
+            formatted_text = self.gemini_api.transcribe_audio(str(audio_file))
+            
+            if not formatted_text:
+                logger.error("音声認識・整形の結果が空です")
+                raise TranscriptionError("書き起こしの生成に失敗しました")
+            
+            logger.info(f"音声認識・整形完了（テキスト長: {len(formatted_text)}文字）")
+            
+            # 整形済みテキストを保存
+            formatted_output_path = self.output_dir / f"transcription_summary_{timestamp}.txt"
+            formatted_output_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                with open(formatted_output_path, "w", encoding="utf-8") as f:
+                    f.write(formatted_text)
+            except Exception as e:
+                logger.error(f"整形済みテキストの保存中にエラー: {str(e)}")
+                raise TranscriptionError(f"整形済みテキストの保存に失敗しました: {str(e)}")
+            
+            logger.info("Gemini方式での書き起こし処理が完了しました")
+            return {
+                "raw_text": "",  # Gemini方式では生テキストは生成されない
+                "formatted_text": formatted_text,
+                "raw_file": None,
+                "formatted_file": formatted_output_path,
+                "timestamp": timestamp
+            }
+            
+        except Exception as e:
+            logger.error(f"Gemini方式での処理中にエラー: {str(e)}")
+            raise TranscriptionError(f"Gemini方式での処理に失敗しました: {str(e)}")
 
     def get_output_path(self, timestamp: str = None) -> pathlib.Path:
         """出力ファイルパスの生成"""

@@ -51,7 +51,7 @@ rokuon.mp4
 rokuon.mp3
 EXE.zip
 config/settings.json
-仕様書２.md
+仕様*
 仕様書.md
 仕様書.md
 仕様書 copy.md
@@ -60,3 +60,5 @@ tests/
 rokuon_converted.mp3
 test_converted.mp3
 config/transcription_config.json
+sample
+check_env.py
