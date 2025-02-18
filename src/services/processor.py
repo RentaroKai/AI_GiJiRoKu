@@ -1,11 +1,11 @@
 import logging
 from pathlib import Path
 from typing import Dict, Any
-from .audio import AudioProcessor
-from .transcription import TranscriptionService
-from .csv_converter import CSVConverterService
-from .minutes import MinutesService
-from .format_converter import convert_file, cleanup_file
+from .audio import AudioProcessor, AudioProcessingError
+from .transcription import TranscriptionService, TranscriptionError
+from .csv_converter import CSVConverterService, CSVConversionError
+from .minutes import MinutesService, MinutesError
+from .format_converter import convert_file, cleanup_file, FormatConversionError
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +20,18 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
     try:
         # 追加: ファイル形式の判定・変換処理
         original_path = str(input_file)
-        converted = convert_file(original_path)
-        if converted != original_path:
-            conversion_performed = True
-            converted_file = Path(converted)
-            logger.info(f"変換が実施されました。変換後のファイルを使用します: {converted_file}")
-            input_file = converted_file
-        else:
-            logger.info("ファイル形式は既に対応済みのため変換は不要です。")
+        try:
+            converted = convert_file(original_path)
+            if converted != original_path:
+                conversion_performed = True
+                converted_file = Path(converted)
+                logger.info(f"変換が実施されました。変換後のファイルを使用します: {converted_file}")
+                input_file = converted_file
+            else:
+                logger.info("ファイル形式は既に対応済みのため変換は不要です。")
+        except FormatConversionError as e:
+            logger.error(f"ファイル形式の変換に失敗しました: {str(e)}")
+            raise AudioProcessingError(f"ファイル形式の変換に失敗しました: {str(e)}")
 
         # 音声処理サービスの初期化
         audio_processor = AudioProcessor()
@@ -88,7 +92,10 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 audio_file.unlink()
             # 追加: 変換処理で生成した一時ファイルの削除
             if conversion_performed and converted_file is not None and converted_file.exists():
-                cleanup_file(str(converted_file))
+                try:
+                    cleanup_file(str(converted_file))
+                except FormatConversionError as e:
+                    logger.warning(f"一時ファイルの削除中にエラーが発生しました: {str(e)}")
                 
     except Exception as e:
         logger.error(f"処理中にエラーが発生しました: {str(e)}")

@@ -113,12 +113,21 @@ class MainWindow:
         """ファイル選択ダイアログを表示"""
         file_path = filedialog.askopenfilename(
             filetypes=[
-                ("音声/動画ファイル", "*.mp3 *.wav *.mp4 *.mkv"),
+                ("音声/動画ファイル", "*.mp3 *.wav *.mp4 *.m4a *.aac *.flac *.ogg *.mkv *.avi *.mov *.flv"),
+                ("音声ファイル", "*.mp3 *.wav *.m4a *.aac *.flac *.ogg"),
+                ("動画ファイル", "*.mp4 *.mkv *.avi *.mov *.flv"),
                 ("すべてのファイル", "*.*")
             ]
         )
         if file_path:
             self.file_path_var.set(file_path)
+            # ファイル形式に応じたステータス表示
+            _, ext = os.path.splitext(file_path)
+            ext = ext.lower().lstrip('.')
+            if ext in ['m4a', 'aac', 'flac', 'ogg', 'mkv', 'avi', 'mov', 'flv']:
+                self.status_var.set("注意: このファイル形式は変換が必要です。処理時間が長くなる可能性があります。")
+            else:
+                self.status_var.set("待機中")
 
     def _execute_processing(self):
         """処理の実行"""
@@ -147,6 +156,7 @@ class MainWindow:
             }
             
             # 処理の実行
+            self.status_var.set("処理中...")
             results = process_audio_file(input_file, modes)
             
             # デバッグ用ログ出力
@@ -176,7 +186,10 @@ class MainWindow:
             ))
             
         except (AudioProcessingError, TranscriptionError, CSVConversionError, ConfigError) as e:
-            self.root.after(0, lambda: messagebox.showerror("エラー", str(e)))
+            error_msg = str(e)
+            if "FFmpeg" in error_msg:
+                error_msg += "\n\n未対応の形式のファイルを変換中にエラーが発生しました。"
+            self.root.after(0, lambda: messagebox.showerror("エラー", error_msg))
         except Exception as e:
             logger.error(f"予期せぬエラー: {str(e)}")
             self.root.after(0, lambda: messagebox.showerror("エラー", f"予期せぬエラーが発生しました: {str(e)}"))
