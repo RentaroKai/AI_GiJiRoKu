@@ -1,0 +1,57 @@
+APP_Manager.json
+
+# OS固有のファイル
+.DS_Store
+Thumbs.db
+
+# ログファイル
+*.log
+
+# 依存関係やビルド生成物
+node_modules/
+build/
+dist/
+tmp/
+temp/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDEやエディターの設定ファイル
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# 環境設定ファイル
+.env
+.env.*
+venv/
+env/
+
+# 出力ディレクトリ
+output/
+
+# キャッシュディレクトリ
+.cache/
+.pytest_cache/
+
+# カバレッジレポート
+.coverage
+htmlcov/
+
+# その他
+*.bak
+*.tmp
+*.temp
+.python-version
+rokuon.mp4
+ゴミ
+参考スクリプトパーツ
+rokuon.mp3
+EXE.zip
+config/settings.json
+仕様書２.md
+仕様書.md
+仕様書.md
+仕様書 copy.md
