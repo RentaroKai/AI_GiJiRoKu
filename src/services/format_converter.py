@@ -10,7 +10,7 @@ class FormatConversionError(Exception):
 
 # 未対応フォーマットの拡張子リスト
 AUDIO_FORMATS = ['m4a', 'aac', 'flac', 'ogg']
-VIDEO_FORMATS = ['mkv', 'avi', 'mov', 'flv']
+VIDEO_FORMATS = ['mkv', 'mp4','avi', 'mov', 'flv']
 
 
 def is_conversion_needed(file_path):

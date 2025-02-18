@@ -57,3 +57,5 @@ config/settings.json
 仕様書 copy.md
 test.mkv
 tests/
+rokuon_converted.mp3
+test_converted.mp3
