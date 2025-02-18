@@ -121,7 +121,7 @@ def setup_config():
             logging.info("書き起こし設定ファイルが存在しないため、新規作成します")
             default_transcription_config = {
                 "transcription": {
-                    "method": "gpt4_audio"  # デフォルトをGPT-4 Audio方式に設定
+                    "method": "whisper_gpt4"  # デフォルトをWhisper + GPT-4方式に設定
                 }
             }
             with open(transcription_config_path, "w", encoding="utf-8") as f:
