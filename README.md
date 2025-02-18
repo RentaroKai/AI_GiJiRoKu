@@ -12,7 +12,7 @@
 
 ###  OpenAI APIキーの取得
 
-このアプリを使用するには、OpenAIのAPIキーが必要です。以下の手順で取得できます：
+このアプリは無料で利用できますが、使用するには、OpenAIのAPIキーが必要です。最初の５ドル分無料で、以後は使った量に応じて費用がかかります(安いです)。以下の手順で取得できます：
 
 1. [OpenAIのウェブサイト](https://platform.openai.com/signup)にアクセスし、アカウントを作成  
 2. ログイン後、https://platform.openai.com/api-keys
