@@ -85,8 +85,20 @@
 pyinstaller GiJiRoKu.spec
 ```
 
+## 🎯 プロンプトのカスタマイズ
+
+`src/prompts/` ディレクトリ内の以下のファイルを編集することで、AIの動作をカスタマイズできます：
+
+- `minutes.txt`: 議事録の作成方法と形式
+- `reflection.txt`: 会議の振り返り分析の基準
+- `transcription.txt`: 音声の書き起こし整形ルール
+
+
 
 ## 📝 ライセンス情報
+
+### GiJiRoKu
+MIT License
 
 ### FFmpeg
 このソフトウェアは、FFmpeg（https://ffmpeg.org/）を使用しています。
