@@ -1,8 +1,6 @@
 # AI議事録作成アプリ（GiJiRoKu）
 
 会議や講演の音声/動画ファイルから自動的に議事録を作成するAI議事録君です。
-pythonとか分からないという人は　exeファイルをこちらからDLして使ってください。
-https://github.com/RentaroKai/AI_GiJiRoKu/releases
 
 ## 🌟 主な機能
 
@@ -16,10 +14,44 @@ https://github.com/RentaroKai/AI_GiJiRoKu/releases
 
 このアプリを使用するには、OpenAIのAPIキーが必要です。以下の手順で取得できます：
 
-1. [OpenAIのウェブサイト](https://platform.openai.com/signup)にアクセスし、アカウントを作成
-2. ログイン後、https://platform.openai.com/api-keys　にアクセス
+1. [OpenAIのウェブサイト](https://platform.openai.com/signup)にアクセスし、アカウントを作成  
+2. ログイン後、https://platform.openai.com/api-keys
+　にアクセス  
 3. 「Create new secret key」をクリックして新しいAPIキーを作成
 4. 作成されたAPIキーを設定画面から入力するか、環境変数「OPENAI_API_KEY」に設定してください。
+
+
+## 🚀 使い方（かんたん版）
+
+#### Step 1: アプリの準備
+1. [リリースページ](https://github.com/RentaroKai/AI_GiJiRoKu/releases)から最新の「GiJiRoKu.exe」をダウンロードします
+2. ダウンロードしたファイルを好きな場所に保存します
+
+#### Step 2: アプリの起動
+1. 保存した「GiJiRoKu.exe」をダブルクリックして起動します
+2. 初回起動時は、OpenAI APIキーの設定が必要です
+   - 上記の「はじめる前に」セクションを参考にAPIキーを取得してください
+
+#### Step 3: 音声/動画ファイルの準備
+1. 議事録にしたい会議や講演の音声/動画ファイルを用意します
+2. 対応しているファイル形式：
+   - 音声：mp3, wav, m4a
+   - 動画：mp4, mkv
+
+#### Step 4: 議事録の作成
+1. アプリの「参照」ボタンをクリックします
+2. 用意した音声/動画ファイルを選択します
+3. 「実行」ボタンをクリックします
+4. しばらく待つと自動で議事録が作成されます
+
+#### Step 5: 議事録の確認と保存
+作成された議事録は自動的に保存されます
+📁ボタンを押すと出てきます
+
+### ⚠️ 注意事項
+- インターネット接続が必要です
+- APIキーの利用には料金が発生します（安いです）
+- 音声認識は完全ではありません。重要な会議では、作成された議事録の内容を必ず確認してください
 
 
 ## 🔧 必要要件
