@@ -24,12 +24,30 @@ class FileOrganizer:
             str: 作成されたフォルダのパス
         """
         try:
+            # 必要なディレクトリの存在確認と作成
+            required_dirs = ['output', 'output/transcriptions', 'output/csv', 'output/minutes']
+            for dir_path in required_dirs:
+                if not os.path.exists(dir_path):
+                    os.makedirs(dir_path)
+                    if self.debug_mode:
+                        print(f"[DEBUG] ディレクトリを作成: {dir_path}")
+
             # 会議タイトルの取得
             summary_file = f"output/transcriptions/transcription_summary_{timestamp}.txt"
-            meeting_title = self.file_utils.get_meeting_title(summary_file)
+            if not os.path.exists(summary_file):
+                if self.debug_mode:
+                    print(f"[DEBUG] サマリーファイルが見つかりません: {summary_file}")
+                meeting_title = "未定義会議"
+            else:
+                meeting_title = self.file_utils.get_meeting_title(summary_file)
 
             # 日付の取得（タイムスタンプから）
-            date = datetime.strptime(timestamp, "%Y%m%d%H%M%S").strftime("%Y-%m-%d")
+            try:
+                date = datetime.strptime(timestamp, "%Y%m%d%H%M%S").strftime("%Y-%m-%d")
+            except ValueError:
+                if self.debug_mode:
+                    print(f"[DEBUG] 無効なタイムスタンプ形式: {timestamp}")
+                date = datetime.now().strftime("%Y-%m-%d")
 
             # 新規フォルダの作成
             folder_name = f"{date}_{meeting_title}"
@@ -42,7 +60,9 @@ class FileOrganizer:
 
         except Exception as e:
             self._handle_error(e)
-            raise
+            if self.debug_mode:
+                print(f"[DEBUG] 詳細エラー: {str(e)}")
+            return "output"  # エラー時はデフォルトの出力ディレクトリを返す
 
     def _copy_and_rename_files(self, timestamp: str, new_folder: str, date: str, meeting_title: str) -> None:
         """

@@ -14,11 +14,36 @@ class FileUtils:
         """
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
-                for line in f:
-                    if '"meeting_title":' in line:
-                        # 行から会議タイトルを抽出
-                        title = line.split(':', 1)[1].strip().strip('" ,')
-                        return title
+                content = f.read()
+                
+                # JSONとして解析を試みる
+                try:
+                    data = json.loads(content)
+                    if isinstance(data, dict) and "meeting_title" in data:
+                        return data["meeting_title"]
+                except json.JSONDecodeError:
+                    pass
+                
+                # 正規表現でタイトルを探す
+                title_patterns = [
+                    r'"meeting_title":\s*"([^"]+)"',  # JSON形式
+                    r'会議タイトル[:：]\s*(.+)',      # 日本語形式
+                    r'タイトル[:：]\s*(.+)',          # 簡略形式
+                    r'件名[:：]\s*(.+)',              # 別形式
+                ]
+                
+                for pattern in title_patterns:
+                    match = re.search(pattern, content)
+                    if match:
+                        return match.group(1).strip()
+                
+                # 最初の行から意味のある文字列を抽出
+                lines = content.split('\n')
+                for line in lines:
+                    line = line.strip()
+                    if line and not line.startswith(('#', '//', '{')):
+                        return line[:50]  # 最大50文字まで
+                
             return '未定義会議'
         except Exception as e:
             print(f"会議タイトルの取得に失敗: {str(e)}")
