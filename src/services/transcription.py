@@ -67,8 +67,27 @@ class TranscriptionService:
                 logger.info("設定ファイルが見つかりません。デフォルトの書き起こし方式を使用します。")
                 return "gpt4_audio"
             
-            with open(config_file, "r", encoding="utf-8") as f:
-                config = json.load(f)
+            try:
+                with open(config_file, "r", encoding="utf-8") as f:
+                    config_text = f.read().strip()
+                    # 空ファイルチェック
+                    if not config_text:
+                        logger.warning("設定ファイルが空です。デフォルトの書き起こし方式を使用します。")
+                        return "gpt4_audio"
+                    
+                    # 文字列を整形して余分な文字を削除
+                    config_text = config_text.replace('\n', '').replace('\r', '').strip()
+                    # 最後のカンマを削除（一般的なJSON解析エラーの原因）
+                    if config_text.endswith(',}'):
+                        config_text = config_text[:-2] + '}'
+                    
+                    config = json.loads(config_text)
+            except json.JSONDecodeError as e:
+                logger.warning(f"設定ファイルのJSONパースに失敗しました: {str(e)}。デフォルトの書き起こし方式を使用します。")
+                return "gpt4_audio"
+            except Exception as e:
+                logger.warning(f"設定ファイルの読み込み中に予期せぬエラーが発生しました: {str(e)}。デフォルトの書き起こし方式を使用します。")
+                return "gpt4_audio"
             
             method = config.get("transcription", {}).get("method", "gpt4_audio")
             if method not in ["whisper_gpt4", "gpt4_audio"]:
@@ -78,11 +97,8 @@ class TranscriptionService:
             
             return method
             
-        except json.JSONDecodeError as e:
-            logger.error(f"設定ファイルの解析に失敗しました: {str(e)}")
-            return "gpt4_audio"
         except Exception as e:
-            logger.error(f"設定ファイルの読み込み中にエラーが発生しました: {str(e)}")
+            logger.error(f"設定ファイルの処理中に予期せぬエラーが発生しました: {str(e)}")
             return "gpt4_audio"
 
     def process_audio(self, audio_file: pathlib.Path, additional_prompt: str = "") -> Dict[str, Any]:

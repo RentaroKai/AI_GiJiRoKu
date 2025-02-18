@@ -43,12 +43,35 @@ class CSVConverterService:
             
             json_str = content[json_start:json_end]
             
+            data = []
             try:
                 data = json.loads(json_str)
                 logger.info(f"JSONデータの読み込みに成功しました。{len(data)}件の会話を検出。")
             except json.JSONDecodeError as e:
-                logger.error(f"JSONの解析に失敗しました: {str(e)}")
-                raise CSVConversionError(f"JSONの解析に失敗しました: {str(e)}")
+                logger.warning(f"標準的なJSONパースに失敗しました。代替手法を試みます: {str(e)}")
+                try:
+                    # 文字列を整形して再試行
+                    cleaned_json = json_str.strip().replace('\n', '').replace('\r', '')
+                    # 最後のカンマを削除（一般的なJSON解析エラーの原因）
+                    cleaned_json = cleaned_json.rstrip(',]') + ']'
+                    data = json.loads(cleaned_json)
+                    logger.info(f"クリーニング後のJSONデータの読み込みに成功しました。{len(data)}件の会話を検出。")
+                except json.JSONDecodeError:
+                    # 正規表現でデータを抽出する最後の手段
+                    import re
+                    logger.warning("正規表現によるデータ抽出を試みます")
+                    pattern = r'"speaker"\s*:\s*"([^"]+)"\s*,\s*"utterance"\s*:\s*"([^"]+)"'
+                    matches = re.finditer(pattern, json_str)
+                    for match in matches:
+                        data.append({
+                            "speaker": match.group(1),
+                            "utterance": match.group(2)
+                        })
+                    if data:
+                        logger.info(f"正規表現による抽出に成功しました。{len(data)}件の会話を検出。")
+                    else:
+                        logger.error("データの抽出に失敗しました")
+                        raise CSVConversionError("JSONの解析に失敗し、代替手段でもデータを抽出できませんでした")
             
             # CSVファイルの作成
             with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
