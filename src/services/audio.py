@@ -123,7 +123,7 @@ class AudioProcessor:
             logger.info(f"圧縮音声ファイルを作成: {compressed_audio}")
             
             cmd = [str(self.ffmpeg_path), "-y", "-i", str(temp_audio), "-codec:a", "aac",
-                  "-ar", "16000", "-ac", "1", "-b:a", f"{target_kbps}k", str(compressed_audio)]
+                  "-ar", "22050", "-ac", "1", "-b:a", f"{target_kbps}k", str(compressed_audio)]
             logger.debug(f"FFmpeg圧縮コマンド: {' '.join(cmd)}")
             
             result = subprocess.run(
