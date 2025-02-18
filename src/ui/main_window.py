@@ -12,6 +12,7 @@ from ..services.csv_converter import CSVConverterService, CSVConversionError
 from ..services.file_organizer import FileOrganizer
 from ..utils.config import config_manager, ConfigError
 from ..services.processor import process_audio_file
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -217,11 +218,20 @@ class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("設定")
-        self.geometry("400x300")
+        self.geometry("400x350")  # 高さを少し増やす
         self.transient(parent)
         self.grab_set()
         
         self.config = config_manager.get_config()
+        
+        # 書き起こし設定の読み込み
+        try:
+            with open("config/transcription_config.json", "r", encoding="utf-8") as f:
+                transcription_config = json.load(f)
+                self.transcription_method = transcription_config.get("transcription", {}).get("method", "whisper_gpt4")
+        except:
+            self.transcription_method = "whisper_gpt4"
+            
         self._create_widgets()
         self._setup_layout()
 
@@ -231,6 +241,22 @@ class SettingsDialog(tk.Toplevel):
         self.api_key_var = tk.StringVar(value=self.config.openai_api_key or "")
         self.api_key_frame = ttk.LabelFrame(self, text="OpenAI API Key", padding=5)
         self.api_key_entry = ttk.Entry(self.api_key_frame, textvariable=self.api_key_var, show="*")
+        
+        # 書き起こし方式設定
+        self.transcription_frame = ttk.LabelFrame(self, text="書き起こし方式", padding=5)
+        self.transcription_var = tk.StringVar(value=self.transcription_method)
+        self.transcription_whisper = ttk.Radiobutton(
+            self.transcription_frame,
+            text="Whisper + GPT-4方式（2段階処理）",
+            value="whisper_gpt4",
+            variable=self.transcription_var
+        )
+        self.transcription_gpt4audio = ttk.Radiobutton(
+            self.transcription_frame,
+            text="GPT-4 Audio方式（一括処理）",
+            value="gpt4_audio",
+            variable=self.transcription_var
+        )
         
         # 出力ディレクトリ設定
         self.output_dir_var = tk.StringVar(value=self.config.output_base_dir)
@@ -271,6 +297,11 @@ class SettingsDialog(tk.Toplevel):
         self.api_key_frame.pack(fill=tk.X, padx=10, pady=5)
         self.api_key_entry.pack(fill=tk.X, padx=5)
         
+        # 書き起こし方式設定
+        self.transcription_frame.pack(fill=tk.X, padx=10, pady=5)
+        self.transcription_whisper.pack(fill=tk.X, padx=5, pady=2)
+        self.transcription_gpt4audio.pack(fill=tk.X, padx=5, pady=2)
+        
         # 出力ディレクトリ設定
         self.output_dir_frame.pack(fill=tk.X, padx=10, pady=5)
         self.output_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
@@ -294,11 +325,24 @@ class SettingsDialog(tk.Toplevel):
     def _save_settings(self):
         """設定の保存"""
         try:
+            # 一般設定の保存
             config_manager.update_config(
                 openai_api_key=self.api_key_var.get(),
                 output_base_dir=self.output_dir_var.get(),
                 debug_mode=self.debug_var.get()
             )
+            
+            # 書き起こし設定の保存
+            transcription_config = {
+                "transcription": {
+                    "method": self.transcription_var.get()
+                }
+            }
+            os.makedirs("config", exist_ok=True)
+            with open("config/transcription_config.json", "w", encoding="utf-8") as f:
+                json.dump(transcription_config, f, indent=2, ensure_ascii=False)
+            
             self.destroy()
-        except ConfigError as e:
+            messagebox.showinfo("設定", "設定を保存しました。\n変更を反映するには、次回の処理時から有効になります。")
+        except Exception as e:
             messagebox.showerror("エラー", f"設定の保存に失敗しました: {str(e)}") 

@@ -59,3 +59,4 @@ test.mkv
 tests/
 rokuon_converted.mp3
 test_converted.mp3
+config/transcription_config.json

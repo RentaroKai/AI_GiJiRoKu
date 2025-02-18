@@ -5,6 +5,7 @@ from tkinter import messagebox
 import logging
 import shutil
 import atexit
+import json
 from pathlib import Path
 
 # アプリケーションのベースディレクトリを設定
@@ -108,6 +109,30 @@ def setup_logging():
         ]
     )
 
+def setup_config():
+    """設定ファイルの初期化（存在する場合は初期化しない）"""
+    try:
+        # transcription_config.jsonの初期化（存在しない場合のみ）
+        config_dir = Path("config")
+        config_dir.mkdir(parents=True, exist_ok=True)
+        
+        transcription_config_path = config_dir / "transcription_config.json"
+        if not transcription_config_path.exists():
+            logging.info("書き起こし設定ファイルが存在しないため、新規作成します")
+            default_transcription_config = {
+                "transcription": {
+                    "method": "gpt4_audio"  # デフォルトをGPT-4 Audio方式に設定
+                }
+            }
+            with open(transcription_config_path, "w", encoding="utf-8") as f:
+                json.dump(default_transcription_config, f, indent=2, ensure_ascii=False)
+            logging.info("書き起こし設定ファイルを作成しました")
+        else:
+            logging.info("既存の書き起こし設定ファイルを使用します")
+    except Exception as e:
+        logging.error(f"設定ファイルの初期化中にエラーが発生しました: {e}")
+        raise
+
 def main():
     """アプリケーションのメインエントリーポイント"""
     try:
@@ -118,6 +143,10 @@ def main():
         logger.info(f"アプリケーションを起動中... (実行パス: {BASE_DIR})")
         print(f"実行パス: {BASE_DIR}")
         print(f"アプリケーションパス: {APP_DIR}")
+        
+        # 設定ファイルの初期化
+        print("設定ファイルを初期化します...")
+        setup_config()
         
         # FFmpegの設定
         print("FFmpegの設定を開始します...")
