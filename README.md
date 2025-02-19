@@ -26,6 +26,7 @@
 
 1. [GOOGLEのウェブサイト](https://aistudio.google.com/app/apikey)でAPIキーを作成
 2. 作成されたAPIキーを設定画面から入力するか、環境変数「GOOGLE_API_KEY」に設定してください。
+3. 設定→書き起こし方式　で　「Gemini方式」　を選択する
 
 
 ## 🚀 使い方（かんたん版）
