@@ -33,11 +33,19 @@ class MainWindow:
 
     def _create_widgets(self):
         """ウィジェットの作成"""
+        # スタイルの設定
+        style = ttk.Style()
+        style.configure(
+            "Execute.TButton",
+            background="#2F4F4F",  # ダークモスグリーン
+            foreground="white"     # 白色
+        )
+        
         # ファイル選択部分
         self.file_frame = ttk.LabelFrame(self.root, text="入力ファイル", padding=10)
         self.file_path_var = tk.StringVar()
         self.file_path_entry = ttk.Entry(self.file_frame, textvariable=self.file_path_var, width=50)
-        self.browse_button = ttk.Button(self.file_frame, text="参照", command=self._browse_file)
+        self.browse_button = ttk.Button(self.file_frame, text="ファイル選択", command=self._browse_file)
         
         # モード選択部分
         self.mode_frame = ttk.LabelFrame(self.root, text="処理モード", padding=10)
@@ -63,24 +71,35 @@ class MainWindow:
         )
         
         # ボタン部分
-        self.open_output_button = ttk.Button(
+        self.open_output_button = tk.Button(
             self.root,
             text="📁",
-            command=self._open_output_dir
+            command=self._open_output_dir,
+            relief="raised",
+            padx=10,
+            pady=5
         )
         
         # 実行ボタン
-        self.execute_button = ttk.Button(
+        self.execute_button = tk.Button(
             self.root,
             text="実行",
-            command=self._execute_processing
+            command=self._execute_processing,
+            bg="#2F4F4F",  # ダークモスグリーン
+            fg="white",    # 白色
+            relief="raised",
+            padx=10,
+            pady=5
         )
         
         # 設定ボタン
-        self.settings_button = ttk.Button(
+        self.settings_button = tk.Button(
             self.root,
             text="設定",
-            command=self._show_settings
+            command=self._show_settings,
+            relief="raised",
+            padx=10,
+            pady=5
         )
         
         # ステータス表示
