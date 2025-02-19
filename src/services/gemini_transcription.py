@@ -44,7 +44,7 @@ class GeminiTranscriptionService(TranscriptionService):
     def _load_system_prompt(self) -> str:
         """Load system prompt for transcription"""
         try:
-            prompt_path = Path("src/prompts/transcription.txt")
+            prompt_path = Path("src/prompts/transcriptionGEMINI.txt")
             with open(prompt_path, 'r', encoding='utf-8') as f:
                 return f.read().strip()
         except Exception as e:

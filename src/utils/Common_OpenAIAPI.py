@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # 定数定義
 DEFAULT_CHAT_MODEL = "gpt-4o"
-DEFAULT_VISION_MODEL = "gpt-4o"
+#DEFAULT_VISION_MODEL = "gpt-4o"
 DEFAULT_AUDIO_MODEL = "whisper-1"
 DEFAULT_4oAUDIO_MODEL = "gpt-4o-mini-audio-preview"
 DEFAULT_TEMPERATURE = 0.1

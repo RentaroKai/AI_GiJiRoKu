@@ -24,7 +24,7 @@
 
 ###  GOOGLE APIキーの取得
 
-無料のGOOGLEのAPIキーも使えます。
+無料のGOOGLEのAPIキーも使えます(学習に使われます)。
 
 1. [GOOGLEのウェブサイト](https://aistudio.google.com/app/apikey)でAPIキーを作成
 2. 作成されたAPIキーを設定画面から入力するか、環境変数「GOOGLE_API_KEY」に設定してください。
@@ -96,19 +96,22 @@
 pyinstaller GiJiRoKu.spec
 ```
 
-## 🎯 プロンプトのカスタマイズ
+## 🎯 カスタマイズのやり方
 
 `src/prompts/` ディレクトリ内の以下のファイルを編集することで、AIの動作をカスタマイズできます：
 
 - `minutes.txt`: 議事録の作成方法と形式
 - `reflection.txt`: 会議の振り返り分析の基準
-- `transcription.txt`: 音声の書き起こし整形ルール
+- `transcription.txt`: 音声の書き起こし整形ルール  
 
+`src/utils/` ディレクトリ内の以下のファイルを編集することで、AIのモデルを指定できます：
 
+- `Common_OpenAIAPI.py`: openAIのモデルの指定を変えられます DEFAULT_CHAT_MODEL = "XXX"の部分をo3-miniなどにすることもできます。
+- `gemini_api.py`: geminiのモデルの指定を変えられます model_name="XXX"を書き換えるとモデルが変更できます。最大文字数も増やせます。
 
 ## 📝 ライセンス情報
 
-### GiJiRoKu
+### AI_GiJiRoKu
 MIT License
 
 ### FFmpeg

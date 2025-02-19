@@ -31,7 +31,7 @@ class GeminiAPI:
         
         # Generation config from sample/gemini.py
         self.generation_config = {
-            "temperature": 1,
+            "temperature": 0.1,
             "top_p": 0.95,
             "top_k": 40,
             "max_output_tokens": 8192,
