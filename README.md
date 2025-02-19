@@ -20,6 +20,13 @@
 3. 「Create new secret key」をクリックして新しいAPIキーを作成
 4. 作成されたAPIキーを設定画面から入力するか、環境変数「OPENAI_API_KEY」に設定してください。
 
+###  GOOGLE APIキーの取得
+
+完全に無料で利用したい場合、無料のGOOGLEのAPIキーを使って利用できます。
+
+1. [GOOGLEのウェブサイト](https://aistudio.google.com/app/apikey)でAPIキーを作成
+2. 作成されたAPIキーを設定画面から入力するか、環境変数「GOOGLE_API_KEY」に設定してください。
+
 
 ## 🚀 使い方（かんたん版）
 
