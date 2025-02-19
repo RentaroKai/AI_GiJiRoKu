@@ -43,7 +43,7 @@ def convert_file(input_file):
     それ以外の場合は入力ファイルパスをそのまま返す。
     """
     logger.info(f"ファイル変換処理を開始: {input_file}")
-    
+
     # 未対応フォーマットの場合、変換処理を実施
     if not is_conversion_needed(input_file):
         logger.info("変換は不要。既に対応している形式です。")
@@ -59,24 +59,24 @@ def convert_file(input_file):
     # FFmpegのコマンド作成
     if ext in AUDIO_FORMATS:
         # オーディオの場合の変換コマンド
-        cmd = f'ffmpeg -y -i "{input_file}" "{output_file}"'
+        cmd = f'ffmpeg -y -i "{input_file}" -map 0:a:0 -acodec libmp3lame -q:a 2 "{output_file}"'
     elif ext in VIDEO_FORMATS:
         # 動画の場合の変換コマンド（動画部分を除外）
-        cmd = f'ffmpeg -y -i "{input_file}" -vn -acodec mp3 "{output_file}"'
+        cmd = f'ffmpeg -y -i "{input_file}" -vn -map 0:a:0 -acodec libmp3lame -q:a 2 "{output_file}"'
     else:
         # その他の形式の場合はそのまま返す（通常はここに到達しない）
         logger.warning(f"未知の形式のため変換をスキップ: {ext}")
         return input_file
 
     logger.info(f"変換開始: {cmd}")
-    
+
     # コマンドプロンプトで実行するため、shell=Trueを指定
     try:
         result = subprocess.run(cmd, shell=True, capture_output=True, text=True)
         # FFmpegの出力内容をログに出力
         logger.debug("FFmpeg標準出力: %s", result.stdout)
         logger.debug("FFmpeg標準エラー出力: %s", result.stderr)
-        
+
         if result.returncode != 0:
             error_msg = f"FFmpegエラー: returncode {result.returncode}"
             logger.error(error_msg)
@@ -124,14 +124,14 @@ if __name__ == '__main__':
     # テスト実行用のコード
     import sys
     logging.basicConfig(level=logging.INFO)
-    
+
     if len(sys.argv) < 2:
         logger.error("使用方法: python format_converter.py 入力ファイルパス")
         sys.exit(1)
-    
+
     input_path = sys.argv[1]
     logger.info(f"入力ファイル: {input_path}")
-    
+
     try:
         converted = convert_file(input_path)
         logger.info(f"変換後のファイル: {converted}")
@@ -140,4 +140,4 @@ if __name__ == '__main__':
         sys.exit(1)
     except Exception as e:
         logger.error(f"予期せぬエラー: {str(e)}")
-        sys.exit(1) 
+        sys.exit(1)
