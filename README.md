@@ -10,9 +10,11 @@
 
 ## 🚀 はじめる前に
 
+このアプリは無料で利用できますが、使用するには、GEMINIまたはOpenAIのAPIキーが必要です。
+
 ###  OpenAI APIキーの取得
 
-このアプリは無料で利用できますが、使用するには、OpenAIのAPIキーが必要です。最初の５ドル分無料で、以後は使った量に応じて費用がかかります(安いです)。以下の手順で取得できます：
+最初の５ドル分無料で、以後は使った量に応じて費用がかかります(安いです)。以下の手順で取得できます：
 
 1. [OpenAIのウェブサイト](https://platform.openai.com/signup)にアクセスし、アカウントを作成  
 2. ログイン後、https://platform.openai.com/api-keys
@@ -22,7 +24,7 @@
 
 ###  GOOGLE APIキーの取得
 
-完全に無料で利用したい場合、無料のGOOGLEのAPIキーを使って利用できます。
+無料のGOOGLEのAPIキーも使えます。
 
 1. [GOOGLEのウェブサイト](https://aistudio.google.com/app/apikey)でAPIキーを作成
 2. 作成されたAPIキーを設定画面から入力するか、環境変数「GOOGLE_API_KEY」に設定してください。
