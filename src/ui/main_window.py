@@ -156,7 +156,7 @@ class MainWindow:
             return
         
         # UIの更新
-        self.execute_button.state(["disabled"])
+        self.execute_button.config(state="disabled")
         self.status_var.set("処理中...")
         
         # 処理の実行（別スレッド）
@@ -215,7 +215,7 @@ class MainWindow:
             self.root.after(0, lambda: messagebox.showerror("エラー", f"予期せぬエラーが発生しました: {str(e)}"))
         finally:
             # UI状態の復帰
-            self.root.after(0, lambda: self.execute_button.state(["!disabled"]))
+            self.root.after(0, lambda: self.execute_button.config(state="normal"))
             self.root.after(0, lambda: self.status_var.set("待機中"))
 
     def _show_settings(self):
