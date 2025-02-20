@@ -2,7 +2,7 @@ import os
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
-import base64
+import httplib2
 
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
@@ -16,19 +16,28 @@ class TranscriptionError(Exception):
 class GeminiAPI:
     def __init__(self, api_key: str = ""):
         """Initialize Gemini API client
-        
+
         Args:
             api_key (str): Gemini API key. 環境変数GOOGLE_API_KEYが優先されます。
         """
+        # SSL証明書の設定
+        cert_path = os.environ.get('SSL_CERT_FILE')
+        if cert_path:
+            httplib2.CA_CERTS = cert_path
+            logger.info(f"SSL証明書が設定されました: {cert_path}")
+
         # 環境変数を優先、なければ引数のapi_keyを使用
         self.api_key = os.getenv("GOOGLE_API_KEY") or api_key
-        
+
         if not self.api_key:
             logger.warning("Gemini API keyが設定されていません")
         else:
             logger.info("Gemini API keyが設定されています")
-            genai.configure(api_key=self.api_key)
-        
+            genai.configure(
+                api_key=self.api_key,
+                transport='rest'  # RESTトランスポートを指定
+            )
+
         # Generation config from sample/gemini.py
         self.generation_config = {
             "temperature": 0.1,
@@ -88,14 +97,14 @@ class GeminiAPI:
 }
 
 入力された音声の書き起こしテキストを上記の形式に変換してください。"""
-    
+
     def upload_file(self, file_path: str, mime_type: Optional[str] = None) -> Any:
         """Upload a file to Gemini API
-        
+
         Args:
             file_path (str): Path to the file
             mime_type (str, optional): MIME type of the file
-            
+
         Returns:
             Any: Uploaded file object
         """
@@ -106,7 +115,7 @@ class GeminiAPI:
         except Exception as e:
             logger.error(f"Failed to upload file: {str(e)}")
             raise
-    
+
     def transcribe_audio(self, audio_file_path: str) -> str:
         """音声ファイルを文字起こしする"""
         # API keyのチェックを最初に行う
@@ -118,6 +127,8 @@ class GeminiAPI:
             if not os.path.exists(audio_file_path):
                 raise TranscriptionError(f"音声ファイルが見つかりません: {audio_file_path}")
 
+            # モデルの初期化　いったん古いやつでもいけるのか確かめる
+            # model = genai.GenerativeModel('gemini-2.0-flash')
             # モデルの初期化
             model = genai.GenerativeModel(
                 model_name="gemini-2.0-flash",
@@ -129,17 +140,27 @@ class GeminiAPI:
             file = genai.upload_file(audio_file_path, mime_type="audio/mpeg")
             logger.info(f"Uploaded file '{file.display_name}' as: {file.uri}")
 
-            # チャットセッションを開始して音声処理を実行
-            chat = model.start_chat()
-            response = chat.send_message([file, "処理せよ"])
-            
-            if not response.text:
-                raise TranscriptionError("Gemini APIからの応答が空です")
+            try:
+                # 直接generate_contentを使用し、タイムアウトを設定
+                response = model.generate_content(
+                    [file, "Take minutes of the meeting."],
+                    generation_config=self.generation_config,
+                    request_options={"timeout": 120}
+                )
 
-            # レスポンステキストをそのまま返す（マークダウンフォーマットを含む）
-            return response.text
+                if not response.text:
+                    raise TranscriptionError("Gemini APIからの応答が空です")
+
+                return response.text
+
+            finally:
+                # アップロードしたファイルの削除を試みる
+                try:
+                    file.delete()
+                except Exception as e:
+                    logger.warning(f"アップロードファイルの削除に失敗しました: {str(e)}")
 
         except TranscriptionError:
             raise
         except Exception as e:
-            raise TranscriptionError(f"Gemini APIの処理に失敗しました: {str(e)}") 
+            raise TranscriptionError(f"Gemini APIの処理に失敗しました: {str(e)}")
