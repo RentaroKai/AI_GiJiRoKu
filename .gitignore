@@ -64,3 +64,4 @@ sample
 check_env.py
 src/services/_audio.py
 src/services/_format_converter.py
+doc/*
