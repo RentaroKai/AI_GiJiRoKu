@@ -132,42 +132,35 @@ class FileOrganizer:
             f"output/title/meetingtitle_{timestamp}.txt": f"{date}_{meeting_title}_タイトル.txt"
         }
 
-        successful_copies = []  # コピーに成功したファイルのリスト
+        successful_copies = []
 
         # ファイルごとの処理
         for src, dst in files_to_process.items():
             try:
                 if os.path.exists(src):
                     dst_path = os.path.join(new_folder, dst)
-                    print(f"ファイルをコピーします: {src} -> {dst_path}")
                     self.logger.info(f"ファイルをコピーします: {src} -> {dst_path}")
                     
                     # ファイルのコピー
                     shutil.copy2(src, dst_path)
                     successful_copies.append(src)
-                    print(f"ファイルのコピーが完了しました: {dst_path}")
                     self.logger.info(f"ファイルのコピーが完了しました: {dst_path}")
                 else:
-                    print(f"元ファイルが存在しません: {src}")
                     self.logger.warning(f"元ファイルが存在しません: {src}")
 
             except Exception as e:
                 error_msg = f"ファイル {src} の処理中にエラーが発生しました: {e}"
-                print(error_msg)
                 self.logger.error(error_msg)
                 continue
 
         # コピーに成功したファイルの削除
         for src in successful_copies:
             try:
-                print(f"元ファイルを削除します: {src}")
                 self.logger.info(f"元ファイルを削除します: {src}")
                 os.remove(src)
-                print(f"元ファイルの削除が完了しました: {src}")
                 self.logger.info(f"元ファイルの削除が完了しました: {src}")
             except Exception as e:
                 error_msg = f"ファイル {src} の削除中にエラーが発生しました: {e}"
-                print(error_msg)
                 self.logger.error(error_msg)
 
     def _handle_error(self, error: Exception) -> None:
@@ -181,5 +174,4 @@ class FileOrganizer:
         else:
             error_message = "ファイルの処理中にエラーが発生しました。"
         
-        # TODO: エラーメッセージの表示方法は要検討
-        print(error_message)  # 仮の実装 
+        self.logger.error(error_message) 

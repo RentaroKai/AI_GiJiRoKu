@@ -14,8 +14,8 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
     """音声ファイルの処理を実行"""
     results = {}
     
-    print(f"[DEBUG] 処理開始 - 入力ファイル: {input_file}")
-    print(f"[DEBUG] モード設定: {modes}")
+    logger.info(f"処理開始 - 入力ファイル: {input_file}")
+    logger.info(f"モード設定: {modes}")
     
     # 追加: 変換フラグおよび変換後ファイル保持用変数の初期化
     conversion_performed = False
@@ -30,11 +30,9 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 conversion_performed = True
                 converted_file = Path(converted)
                 logger.info(f"変換が実施されました。変換後のファイルを使用します: {converted_file}")
-                print(f"[DEBUG] ファイル変換完了: {converted_file}")
                 input_file = converted_file
             else:
                 logger.info("ファイル形式は既に対応済みのため変換は不要です。")
-                print("[DEBUG] ファイル変換不要")
         except FormatConversionError as e:
             logger.error(f"ファイル形式の変換に失敗しました: {str(e)}")
             raise AudioProcessingError(f"ファイル形式の変換に失敗しました: {str(e)}")
@@ -44,45 +42,36 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
         
         # 音声の抽出と必要に応じた圧縮
         logger.info(f"音声ファイルの処理を開始: {input_file}")
-        print(f"[DEBUG] 音声処理開始: {input_file}")
         audio_file, was_compressed = audio_processor.extract_audio(input_file)
-        print(f"[DEBUG] 音声処理完了 - 圧縮状態: {was_compressed}")
+        logger.info(f"音声処理完了 - 圧縮状態: {was_compressed}")
         
         try:
             # 書き起こし処理（必須）
             if modes["transcribe"]:
                 logger.info("書き起こし処理を開始")
-                print("[DEBUG] 書き起こし処理開始")
                 transcription_service = TranscriptionService()
                 transcription_result = transcription_service.process_audio(audio_file)
                 results["transcription"] = transcription_result
-                print(f"[DEBUG] 書き起こし結果: {transcription_result}")
                 
                 # 会議タイトル生成処理を追加
                 try:
                     logger.info("会議タイトル生成処理を開始")
-                    print("[DEBUG] タイトル生成開始")
                     # タイトル出力ディレクトリの確認と作成
                     title_output_dir = Path("output/title")
                     if not title_output_dir.exists():
                         title_output_dir.mkdir(parents=True, exist_ok=True)
                         logger.info(f"タイトル出力ディレクトリを作成しました: {title_output_dir}")
-                        print(f"[DEBUG] タイトル出力ディレクトリを作成: {title_output_dir}")
 
                     title_service = MeetingTitleService()
                     transcript_file_path = transcription_result.get("formatted_file")
-                    print(f"[DEBUG] 書き起こしファイルパス: {transcript_file_path}")
                     if transcript_file_path:
                         title_file_path = title_service.process_transcript_and_generate_title(str(transcript_file_path))
                         results["meeting_title"] = {"file_path": title_file_path}
                         logger.info(f"会議タイトル生成完了: {title_file_path}")
-                        print(f"[DEBUG] タイトル生成完了: {title_file_path}")
                     else:
                         logger.warning("書き起こしファイルのパスが見つかりません")
-                        print("[DEBUG] 書き起こしファイルのパスが見つかりません")
                 except Exception as e:
                     logger.error(f"会議タイトル生成中にエラーが発生: {str(e)}")
-                    print(f"[DEBUG] タイトル生成エラー: {str(e)}")
                     results["meeting_title"] = {"error": str(e)}
                 
                 # CSV変換
@@ -103,10 +92,6 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 logger.info("反省点抽出を開始")
                 minutes_service = MinutesService()
                 
-                # デバッグ用プリント
-                print(f"[DEBUG] 反省点生成 - 入力ファイル: {input_file}")
-                print(f"[DEBUG] 反省点生成 - タイムスタンプ: {transcription_result['timestamp']}")
-                
                 # 議事録ファイルの内容を読み込む
                 with open(results["minutes"], "r", encoding="utf-8") as f:
                     minutes_text = f.read()
@@ -115,7 +100,6 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 
                 # 反省点をファイルに保存（タイムスタンプベースのファイル名に変更）
                 reflection_file = Path("output/minutes") / f"{transcription_result['timestamp']}_reflection.md"
-                print(f"[DEBUG] 反省点生成 - 生成されるファイル名: {reflection_file}")
                 reflection_file.write_text(reflection_text, encoding="utf-8")
                 results["reflection"] = reflection_file
                 logger.info(f"反省点を保存しました: {reflection_file}")
