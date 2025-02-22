@@ -116,8 +116,22 @@ def cleanup_temp():
         logging.error(f"outputフォルダー内のファイル削除中にエラー: {e}")
         print(f"outputフォルダー内のファイル削除中にエラー: {e}")
 
-# srcディレクトリをPythonパスに追加
-sys.path.insert(0, str(BASE_DIR))
+    # output/transcriptions/segments の削除
+    try:
+        segments_folder = Path("output/transcriptions/segments")
+        if segments_folder.exists() and segments_folder.is_dir():
+            shutil.rmtree(segments_folder)
+            logging.info(f"削除しました: {segments_folder}")
+            print(f"削除しました: {segments_folder}")
+        else:
+            logging.info(f"{segments_folder} は存在しません。")
+            print(f"{segments_folder} は存在しません。")
+    except Exception as ex:
+        logging.error(f"{segments_folder} の削除に失敗: {ex}")
+        print(f"{segments_folder} の削除に失敗: {ex}")
+
+    # srcディレクトリをPythonパスに追加
+    sys.path.insert(0, str(BASE_DIR))
 
 from src.ui.main_window import MainWindow
 from src.utils.config import config_manager
