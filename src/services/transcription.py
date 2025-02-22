@@ -7,6 +7,9 @@ from typing import Dict, Any, Literal
 from ..utils.Common_OpenAIAPI import generate_transcribe_from_audio, generate_structured_chat_response, generate_audio_chat_response, APIError, MEETING_TRANSCRIPT_SCHEMA
 from ..utils.gemini_api import GeminiAPI
 import sys
+from modules.audio_splitter import AudioSplitter
+from pathlib import Path
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -231,24 +234,83 @@ class TranscriptionService:
         logger.info("Geminiで音声認識・整形を開始")
         
         try:
-            # 音声ファイルを文字列に変換
-            formatted_text = self.gemini_api.transcribe_audio(str(audio_file))
+            # 設定から分割長を取得（デフォルトは100秒）
+            segment_length = self.config.get('transcription', {}).get('segment_length_seconds', 100)
+            logger.info(f"設定された分割長: {segment_length}秒")
             
-            if not formatted_text:
-                logger.error("音声認識・整形の結果が空です")
-                raise TranscriptionError("書き起こしの生成に失敗しました")
+            # AudioSplitterの初期化（設定された分割長を使用）
+            splitter = AudioSplitter(segment_length_seconds=segment_length)
             
-            logger.info(f"音声認識・整形完了（テキスト長: {len(formatted_text)}文字）")
+            # セグメント保存用の一時ディレクトリを作成
+            segments_dir = self.output_dir / "segments" / timestamp
+            segments_dir.mkdir(parents=True, exist_ok=True)
+            logger.info(f"セグメント一時ディレクトリを作成: {segments_dir}")
             
-            # 整形済みテキストを保存
+            # 音声ファイルを分割
+            logger.info("音声ファイルの分割を開始")
+            split_files = splitter.split_audio(str(audio_file), str(segments_dir))
+            logger.info(f"音声を {len(split_files)} 個のセグメントに分割しました")
+            
+            # 各セグメントの文字起こし結果を保存
+            all_transcriptions = []
+            for i, segment_file in enumerate(split_files, 1):
+                logger.info(f"セグメント {i}/{len(split_files)} の文字起こしを実行中...")
+                
+                # セグメントの文字起こし
+                segment_text_raw = self.gemini_api.transcribe_audio(str(segment_file))
+                # 文字起こし結果の余分な空白を除去
+                segment_text = re.sub(r'\s+', ' ', segment_text_raw).strip() if segment_text_raw else ""
+                
+                if not segment_text:
+                    logger.warning(f"セグメント {i} の文字起こし結果が空です")
+                    continue
+                
+                # セグメント情報を追加
+                segment_result = {
+                    "segment": i,
+                    "segment_file": Path(segment_file).name,
+                    "text": segment_text
+                }
+                all_transcriptions.append(segment_result)
+                logger.info(f"セグメント {i} の文字起こしが完了")
+            
+            # 中間結果をJSONとして保存
+            complete_result = {
+                "metadata": {
+                    "total_segments": len(split_files),
+                    "original_file": str(audio_file)
+                },
+                "segments": all_transcriptions
+            }
+            
+            complete_json_path = self.output_dir / f"complete_transcription_{timestamp}.json"
+            with open(complete_json_path, "w", encoding="utf-8") as f:
+                json.dump(complete_result, f, ensure_ascii=False, indent=2)
+            logger.info(f"中間結果をJSONとして保存: {complete_json_path}")
+            
+            # 全セグメントの結果を結合
+            combined_text = "".join(seg["text"] for seg in all_transcriptions)
+            formatted_text = re.sub(r'\s+', ' ', combined_text).strip()
+            formatted_text = re.sub(r'(?<=[\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF])\s+(?=[\u3000-\u303F\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF])', '', formatted_text)
+            
+            # 最終結果を保存
             formatted_output_path = self.output_dir / f"transcription_summary_{timestamp}.txt"
             formatted_output_path.parent.mkdir(parents=True, exist_ok=True)
+            
             try:
                 with open(formatted_output_path, "w", encoding="utf-8") as f:
                     f.write(formatted_text)
             except Exception as e:
                 logger.error(f"整形済みテキストの保存中にエラー: {str(e)}")
                 raise TranscriptionError(f"整形済みテキストの保存に失敗しました: {str(e)}")
+            
+            # 一時ファイルのクリーンアップ
+            try:
+                import shutil
+                shutil.rmtree(segments_dir)
+                logger.info("一時ファイルのクリーンアップが完了しました")
+            except Exception as e:
+                logger.warning(f"一時ファイルのクリーンアップ中にエラー: {str(e)}")
             
             logger.info("Gemini方式での書き起こし処理が完了しました")
             return {

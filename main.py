@@ -7,6 +7,14 @@ import shutil
 import atexit
 import json
 from pathlib import Path
+from datetime import datetime
+from modules.audio_splitter import AudioSplitter
+from modules.transcriber import GeminiTranscriber
+from modules.audio_processor import AudioProcessor
+
+
+# ロガーの初期化
+logger = logging.getLogger(__name__)
 
 # アプリケーションのベースディレクトリを設定
 if getattr(sys, 'frozen', False):
@@ -145,32 +153,102 @@ def setup_config():
         
         transcription_config_path = config_dir / "transcription_config.json"
         if not transcription_config_path.exists():
-            logging.info("書き起こし設定ファイルが存在しないため、新規作成します")
+            logger.info("書き起こし設定ファイルが存在しないため、新規作成します")
             default_transcription_config = {
                 "transcription": {
-                    "method": "whisper_gpt4"  # デフォルトをWhisper + GPT-4方式に設定
+                    "method": "whisper_gpt4",
+                    "segment_length_seconds": 300
                 },
                 "output": {
-                    "default_dir": str(default_output_dir)  # デフォルトの出力ディレクトリを設定
+                    "default_dir": str(default_output_dir)
                 }
             }
             with open(transcription_config_path, "w", encoding="utf-8") as f:
                 json.dump(default_transcription_config, f, indent=2, ensure_ascii=False)
-            logging.info("書き起こし設定ファイルを作成しました")
+            logger.info("書き起こし設定ファイルを作成しました")
+            print(f"書き起こし設定ファイルを作成しました: {transcription_config_path}")
         else:
-            # 既存の設定ファイルにデフォルトの出力ディレクトリ設定を追加
+            # 既存の設定ファイルを読み込んで必要なパラメータを確認・追加
             with open(transcription_config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
             
+            updated = False
+            # transcriptionセクションがない場合は作成
+            if "transcription" not in config:
+                config["transcription"] = {}
+                updated = True
+            
+            # 必須パラメータの確認と設定（既存の値は保持）
+            if "method" not in config["transcription"]:
+                config["transcription"]["method"] = "whisper_gpt4"
+                updated = True
+            
+            # segment_length_secondsが存在しない場合のみ追加
+            if "segment_length_seconds" not in config["transcription"]:
+                config["transcription"]["segment_length_seconds"] = 300
+                updated = True
+                logger.info("分割時間のデフォルト値(300秒)を設定しました")
+            
             if "output" not in config:
                 config["output"] = {"default_dir": str(default_output_dir)}
+                updated = True
+            elif "default_dir" not in config["output"]:
+                config["output"]["default_dir"] = str(default_output_dir)
+                updated = True
+            
+            # 変更があった場合は保存（既存の設定を保持したまま）
+            if updated:
                 with open(transcription_config_path, "w", encoding="utf-8") as f:
                     json.dump(config, f, indent=2, ensure_ascii=False)
-                logging.info("既存の設定ファイルにデフォルトの出力ディレクトリ設定を追加しました")
-            
-            logging.info("既存の書き起こし設定ファイルを使用します")
+                logger.info("既存の設定ファイルに必要なパラメータを追加しました")
+                print(f"書き起こし設定ファイルが更新されました: {transcription_config_path}")
+            else:
+                logger.info("既存の書き起こし設定ファイルを使用します")
     except Exception as e:
-        logging.error(f"設定ファイルの初期化中にエラーが発生しました: {e}")
+        logger.error(f"設定ファイルの初期化中にエラーが発生しました: {e}")
+        raise
+
+def load_config():
+    """設定ファイルを読み込む"""
+    try:
+        with open('config/settings.json', 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception as e:
+        logger.error(f"設定ファイルの読み込み中にエラーが発生しました: {str(e)}")
+        raise
+
+def process_audio_file(input_file, config):
+    """音声ファイルを処理する"""
+    try:
+        # 出力ディレクトリの設定
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_dir = os.path.join("output", timestamp)
+        logger.info(f"出力ディレクトリを設定: {output_dir}")
+        
+        # 文字起こし方式に応じて処理を分岐
+        transcription_method = config.get('transcription', {}).get('method', 'whisper_gpt4')
+        logger.info(f"文字起こし方式: {transcription_method}")
+        
+        if transcription_method == "gemini":
+            # Geminiを使用する場合はAudioProcessorを使用
+            logger.info("Gemini APIを使用した処理を開始します")
+            processor = AudioProcessor()
+            output_file = processor.process_audio_file(
+                input_file=input_file,
+                output_dir=output_dir,
+                segment_length_seconds=config['transcription'].get('segment_length_seconds', 600)
+            )
+        else:
+            # 既存の処理（Whisper + GPT-4など）
+            logger.info("既存の処理方式を使用します")
+            from src.audio_processing import process_audio
+            output_file = process_audio(input_file, output_dir, config)
+        
+        logger.info(f"文字起こしが完了しました。結果は {output_file} に保存されました")
+        return output_file
+        
+    except Exception as e:
+        logger.error(f"音声ファイルの処理中にエラーが発生しました: {str(e)}", exc_info=True)
         raise
 
 def main():
@@ -179,46 +257,44 @@ def main():
         # ロギングの設定
         print("ロギングの設定を開始します...")
         setup_logging()
-        logger = logging.getLogger(__name__)
+        logger.info("強制的に一時ファイルのクリーンアップを実行します...")
+        cleanup_temp()
         logger.info(f"アプリケーションを起動中... (実行パス: {BASE_DIR})")
-        print(f"実行パス: {BASE_DIR}")
-        print(f"アプリケーションパス: {APP_DIR}")
+        logger.debug(f"実行パス: {BASE_DIR}")
+        logger.debug(f"アプリケーションパス: {APP_DIR}")
         
         # 設定ファイルの初期化
-        print("設定ファイルを初期化します...")
+        logger.info("設定ファイルを初期化します...")
         setup_config()
         
         # FFmpegの設定
-        print("FFmpegの設定を開始します...")
+        logger.info("FFmpegの設定を開始します...")
         setup_ffmpeg()
         
         # 終了時の一時ファイルクリーンアップを登録
         atexit.register(cleanup_temp)
         
         # 必要なディレクトリの作成
-        print("必要なディレクトリを作成します...")
+        logger.info("必要なディレクトリを作成します...")
         for dir_path in ["output/transcriptions", "output/csv", "output/minutes", "logs"]:
             try:
                 Path(dir_path).mkdir(parents=True, exist_ok=True)
-                print(f"ディレクトリを作成しました: {dir_path}")
+                logger.debug(f"ディレクトリを作成しました: {dir_path}")
             except Exception as e:
-                print(f"ディレクトリの作成に失敗しました: {dir_path} - {str(e)}")
+                logger.error(f"ディレクトリの作成に失敗しました: {dir_path} - {str(e)}")
         
         # メインウィンドウの作成
-        print("メインウィンドウを作成します...")
+        logger.info("メインウィンドウを作成します...")
         root = tk.Tk()
         app = MainWindow(root)
         
         # アプリケーションの実行
         logger.info("メインイベントループを開始します")
-        print("アプリケーションを開始します...")
         root.mainloop()
         
     except Exception as e:
         error_msg = f"致命的なエラーが発生しました: {str(e)}"
-        print(error_msg)
-        if 'logger' in locals():
-            logger.error(error_msg)
+        logger.critical(error_msg, exc_info=True)
         # エラーダイアログを表示
         tk.messagebox.showerror("エラー", error_msg)
         raise

@@ -50,8 +50,8 @@ rokuon.mp4
 参考スクリプトパーツ
 rokuon.mp3
 EXE.zip
-config/settings.json
-仕様*
+
+
 仕様書.md
 仕様書.md
 仕様書 copy.md
@@ -59,7 +59,7 @@ test.mkv
 tests/
 rokuon_converted.mp3
 test_converted.mp3
-config/transcription_config.json
+config
 sample
 check_env.py
 src/services/_audio.py
@@ -67,4 +67,6 @@ src/services/_format_converter.py
 doc/*
 
 test_*
-要件定義書＿会議名を書かせる.md
+
+test.mp3
+要件定義書_ファイル分割.md

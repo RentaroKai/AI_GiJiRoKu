@@ -1,8 +1,9 @@
 openai
 pydantic
-pydub
+pydub==0.25.1
 pyperclip>=1.8.2
 typing-extensions>=4.0.0
 requests>=2.31.0
 ffmpeg-python>=0.2.0
-google-generativeai==0.3.0
+google-generativeai==0.3.2
+python-dotenv==1.0.0

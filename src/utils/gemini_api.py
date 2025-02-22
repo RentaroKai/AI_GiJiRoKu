@@ -76,7 +76,7 @@ class GeminiAPI:
         # System prompt for transcription
         self.system_prompt = """あなたは会議の書き起こしを行う専門家です。
 以下の点に注意して、音声ファイルに忠実な書き起こしテキストを作成してください：
-
+1. 声色と発言内容から発言者を判定する
 2. 発言者と発言内容を分けて表示
 3. 発言の整形は最小限にとどめ、発言をそのまま書き起こす
 4. 以下のJSON形式で出力：
@@ -90,7 +90,7 @@ class GeminiAPI:
   ]
 }
 
-入力された音声の書き起こしテキストを上記の形式に変換してください。"""
+入力された音声の書き起こしテキストを上記の形式に変換してください。 。"""
 
     def upload_file(self, file_path: str, mime_type: Optional[str] = None) -> Any:
         """Upload a file to Gemini API
