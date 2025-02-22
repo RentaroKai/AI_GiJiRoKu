@@ -225,9 +225,11 @@ class MainWindow:
     def _open_output_dir(self):
         """出力ディレクトリをエクスプローラーで開く"""
         try:
-            output_dir = pathlib.Path("output").absolute()
-            if not output_dir.exists():
-                output_dir.mkdir(parents=True)
+            # 設定から出力ディレクトリを取得
+            output_dir = self.file_organizer.get_output_directory()
+            if not os.path.exists(output_dir):
+                os.makedirs(output_dir)
+                logger.info(f"出力ディレクトリを作成しました: {output_dir}")
             os.startfile(str(output_dir))
         except Exception as e:
             logger.error(f"出力ディレクトリを開く際にエラーが発生しました: {str(e)}")
@@ -289,14 +291,13 @@ class SettingsDialog(tk.Toplevel):
         )
         
         # 出力ディレクトリ設定
-        self.output_dir_var = tk.StringVar(value=self.config.output_base_dir)
-        self.output_dir_frame = ttk.LabelFrame(self, text="出力ディレクトリ（今は動かないよ）", padding=5)
-        self.output_dir_entry = ttk.Entry(self.output_dir_frame, textvariable=self.output_dir_var, state="readonly")
+        self.output_dir_var = tk.StringVar(value=self.config.output.default_dir)
+        self.output_dir_frame = ttk.LabelFrame(self, text="出力ディレクトリ", padding=5)
+        self.output_dir_entry = ttk.Entry(self.output_dir_frame, textvariable=self.output_dir_var)
         self.output_dir_button = ttk.Button(
             self.output_dir_frame,
             text="参照",
-            command=self._browse_output_dir,
-            state="disabled"
+            command=self._browse_output_dir
         )
         
         # デバッグモード設定
@@ -352,21 +353,31 @@ class SettingsDialog(tk.Toplevel):
         self.cancel_button.pack(side=tk.RIGHT, padx=5)
 
     def _browse_output_dir(self):
-        """出力ディレクトリ選択ダイアログ"""
-        dir_path = filedialog.askdirectory()
-        if dir_path:
-            self.output_dir_var.set(dir_path)
+        """出力ディレクトリを選択するダイアログを表示"""
+        current_dir = self.output_dir_var.get() or os.path.expanduser("~/Documents/議事録")
+        if not os.path.exists(current_dir):
+            current_dir = os.path.expanduser("~/Documents")
+        
+        directory = filedialog.askdirectory(
+            initialdir=current_dir,
+            title="出力ディレクトリの選択"
+        )
+        
+        if directory:  # ユーザーがディレクトリを選択した場合
+            self.output_dir_var.set(directory)
 
     def _save_settings(self):
-        """設定の保存"""
+        """設定を保存"""
         try:
-            # 一般設定の保存
-            config_manager.update_config(
-                openai_api_key=self.api_key_var.get(),
-                gemini_api_key=self.gemini_api_key_var.get(),
-                output_base_dir=self.output_dir_var.get(),
-                debug_mode=self.debug_var.get()
-            )
+            # API Keyの保存
+            config_manager.update_config({
+                "openai_api_key": self.api_key_var.get(),
+                "gemini_api_key": self.gemini_api_key_var.get(),
+                "debug_mode": self.debug_var.get(),
+                "output": {
+                    "default_dir": self.output_dir_var.get()
+                }
+            })
             
             # 書き起こし設定の保存
             transcription_config = {
@@ -374,11 +385,13 @@ class SettingsDialog(tk.Toplevel):
                     "method": self.transcription_var.get()
                 }
             }
+            
             os.makedirs("config", exist_ok=True)
             with open("config/transcription_config.json", "w", encoding="utf-8") as f:
                 json.dump(transcription_config, f, indent=2, ensure_ascii=False)
             
+            messagebox.showinfo("設定", "設定を保存しました")
             self.destroy()
-            messagebox.showinfo("設定", "設定を保存しました。\n変更を反映するには、次回の処理時から有効になります。")
+            
         except Exception as e:
-            messagebox.showerror("エラー", f"設定の保存に失敗しました: {str(e)}") 
+            messagebox.showerror("エラー", f"設定の保存中にエラーが発生しました：{str(e)}") 

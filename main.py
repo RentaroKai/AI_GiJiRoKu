@@ -109,6 +109,30 @@ def setup_logging():
         ]
     )
 
+def setup_default_output_dir():
+    """デフォルトの出力ディレクトリ（マイドキュメント/議事録）の初期設定"""
+    try:
+        # マイドキュメントのパスを取得
+        documents_path = os.path.expanduser("~/Documents")
+        # 議事録フォルダのパスを設定
+        minutes_dir = os.path.join(documents_path, "議事録")
+        
+        # 議事録フォルダが存在しない場合は作成
+        if not os.path.exists(minutes_dir):
+            os.makedirs(minutes_dir)
+            logging.info(f"デフォルトの出力ディレクトリを作成しました: {minutes_dir}")
+            print(f"デフォルトの出力ディレクトリを作成しました: {minutes_dir}")
+        else:
+            logging.info(f"既存の出力ディレクトリを使用します: {minutes_dir}")
+            print(f"既存の出力ディレクトリを使用します: {minutes_dir}")
+            
+        return minutes_dir
+    except Exception as e:
+        error_msg = f"デフォルトの出力ディレクトリの設定中にエラーが発生しました: {e}"
+        logging.error(error_msg)
+        print(error_msg)
+        raise
+
 def setup_config():
     """設定ファイルの初期化（存在する場合は初期化しない）"""
     try:
@@ -116,18 +140,34 @@ def setup_config():
         config_dir = Path("config")
         config_dir.mkdir(parents=True, exist_ok=True)
         
+        # デフォルトの出力ディレクトリを設定
+        default_output_dir = setup_default_output_dir()
+        
         transcription_config_path = config_dir / "transcription_config.json"
         if not transcription_config_path.exists():
             logging.info("書き起こし設定ファイルが存在しないため、新規作成します")
             default_transcription_config = {
                 "transcription": {
                     "method": "whisper_gpt4"  # デフォルトをWhisper + GPT-4方式に設定
+                },
+                "output": {
+                    "default_dir": str(default_output_dir)  # デフォルトの出力ディレクトリを設定
                 }
             }
             with open(transcription_config_path, "w", encoding="utf-8") as f:
                 json.dump(default_transcription_config, f, indent=2, ensure_ascii=False)
             logging.info("書き起こし設定ファイルを作成しました")
         else:
+            # 既存の設定ファイルにデフォルトの出力ディレクトリ設定を追加
+            with open(transcription_config_path, "r", encoding="utf-8") as f:
+                config = json.load(f)
+            
+            if "output" not in config:
+                config["output"] = {"default_dir": str(default_output_dir)}
+                with open(transcription_config_path, "w", encoding="utf-8") as f:
+                    json.dump(config, f, indent=2, ensure_ascii=False)
+                logging.info("既存の設定ファイルにデフォルトの出力ディレクトリ設定を追加しました")
+            
             logging.info("既存の書き起こし設定ファイルを使用します")
     except Exception as e:
         logging.error(f"設定ファイルの初期化中にエラーが発生しました: {e}")

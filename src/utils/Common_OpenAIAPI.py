@@ -1,8 +1,10 @@
 import openai
 import os
 import base64
+import requests
 from typing import List, Dict, Any
 from pydantic import BaseModel
+import time
 import logging
 from pathlib import Path
 
@@ -11,6 +13,7 @@ logger = logging.getLogger(__name__)
 
 # 定数定義
 DEFAULT_CHAT_MODEL = "gpt-4o"
+DEFAULT_REASONING_MODEL = "o3-mini"
 #DEFAULT_VISION_MODEL = "gpt-4o"
 DEFAULT_AUDIO_MODEL = "whisper-1"
 DEFAULT_4oAUDIO_MODEL = "gpt-4o-mini-audio-preview"
@@ -26,16 +29,16 @@ def setup_logging(log_level=logging.INFO):
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
     log_file = log_dir / "app.log"
-    
+
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-    
+
     file_handler = logging.FileHandler(log_file, encoding='utf-8')
     file_handler.setFormatter(formatter)
-    
+
     logger.addHandler(file_handler)
     logger.setLevel(log_level)
 
-def get_client():    
+def get_client():
     if 'SSL_CERT_FILE' in os.environ:
         del os.environ['SSL_CERT_FILE']
     api_key = os.getenv("OPENAI_API_KEY")
@@ -93,14 +96,14 @@ def generate_transcribe_from_audio(audio_file, model=DEFAULT_AUDIO_MODEL, langua
 def generate_audio_chat_response(audio_file_path, system_prompt, temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_4oAUDIO_MODEL, max_tokens=2048):
     """
     音声ファイルとシステムプロンプトを使用してGPT-4 with audioモデルからレスポンスを生成する
-    
+
     Args:
         audio_file_path (str): 処理する音声ファイルのパス
         system_prompt (str): システムプロンプト
         temperature (float): 生成時の温度パラメータ
         model_name (str): 使用するモデル名
         max_tokens (int): 最大トークン数
-    
+
     Returns:
         str: モデルからの応答テキスト
     """
@@ -108,7 +111,7 @@ def generate_audio_chat_response(audio_file_path, system_prompt, temperature=DEF
     try:
         with open(audio_file_path, "rb") as audio_file:
             logger.info(f"音声チャットリクエストを送信: モデル={model_name}")
-            
+
             response = client.chat.completions.create(
                 model=model_name,
                 messages=[
@@ -138,7 +141,7 @@ def generate_audio_chat_response(audio_file_path, system_prompt, temperature=DEF
                 frequency_penalty=0,
                 presence_penalty=0
             )
-            
+
             logger.info("音声チャットレスポンスを受信しました")
             return response.choices[0].message.content
 
@@ -146,5 +149,98 @@ def generate_audio_chat_response(audio_file_path, system_prompt, temperature=DEF
         logger.error(f"音声チャットレスポンス生成中にエラーが発生しました: {str(e)}")
         raise APIError(f"音声チャットレスポンスの生成に失敗しました: {str(e)}")
 
+def generate_structured_chat_response(system_prompt: str, user_message_content: str, json_schema: dict,
+                                   temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_REASONING_MODEL):
+    """構造化されたJSONレスポンスを生成する関数
+
+    Args:
+        system_prompt (str): システムプロンプト
+        user_message_content (str): ユーザーメッセージ
+        json_schema (dict): 期待するJSONスキーマ
+        temperature (float): 生成時の温度パラメータ
+        model_name (str): 使用するモデル名（デフォルトはo3-mini）
+
+    Returns:
+        dict: スキーマに従った構造化されたレスポンス
+    """
+    client = get_client()
+    try:
+        params = {
+            "model": model_name,
+            "temperature": temperature,
+            "messages": [],
+            "response_format": {
+                "type": "json_schema",
+                "json_schema": json_schema
+            },
+            "reasoning_effort": "high"
+        }
+
+        if system_prompt:
+            params["messages"].append({
+                "role": "system",
+                "content": [{"type": "text", "text": system_prompt}]
+            })
+
+        params["messages"].append({
+            "role": "user",
+            "content": [{"type": "text", "text": user_message_content}]
+        })
+
+        logger.info(f"構造化チャットリクエストを送信: モデル={model_name}")
+        response = client.chat.completions.create(**params)
+        logger.info("構造化チャットレスポンスを受信しました")
+        return response.choices[0].message.content
+
+    except Exception as e:
+        logger.error(f"構造化チャットレスポンス生成中にエラーが発生しました: {str(e)}")
+        raise APIError(f"構造化チャットレスポンスの生成に失敗しました: {str(e)}")
+
+# 会議書き起こし用のスキーマ定義
+MEETING_TRANSCRIPT_SCHEMA = {
+    "name": "meeting_transcript",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "meeting_title": {
+                "type": "string",
+                "description": "会議の議題やタイトル"
+            },
+            "conversations": {
+                "type": "array",
+                "description": "会議での発言のリスト",
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "speaker": {
+                            "type": "string",
+                            "description": "発言者名"
+                        },
+                        "utterance": {
+                            "type": "string",
+                            "description": "発言内容"
+                        }
+                    },
+                    "required": ["speaker", "utterance"],
+                    "additionalProperties": False
+                }
+            }
+        },
+        "required": ["meeting_title", "conversations"],
+        "additionalProperties": False
+    }
+}
+
+
+# system_prompt = """あなたは会議の書き起こしを行う専門家です。
+# 音声ファイルに忠実な書き起こしテキストを作成してください。"""
+
+# response = generate_structured_chat_response(
+#     system_prompt=system_prompt,
+#     user_message_content="会議の内容",
+#     json_schema=MEETING_TRANSCRIPT_SCHEMA
+# )
+
 # 初期設定
-setup_logging() 
+setup_logging()

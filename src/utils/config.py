@@ -11,16 +11,23 @@ class ConfigError(Exception):
     """設定関連のエラーを扱うカスタム例外クラス"""
     pass
 
+class OutputConfig(BaseModel):
+    """出力設定モデル"""
+    default_dir: str = "output"
+
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""
     openai_api_key: Optional[str] = None
     gemini_api_key: Optional[str] = None
-    output_base_dir: str = "output"
+    output: OutputConfig = OutputConfig()
     debug_mode: bool = False
     log_level: str = "INFO"
     log_retention_days: int = 7
     max_audio_size_mb: int = 1024  # 1GB
     temp_file_retention_hours: int = 24
+
+    class Config:
+        arbitrary_types_allowed = True
 
 class ConfigManager:
     def __init__(self, config_file: str = "config/settings.json"):
@@ -54,15 +61,31 @@ class ConfigManager:
             logger.error(f"Error saving configuration: {str(e)}")
             raise ConfigError(f"Failed to save configuration: {str(e)}")
 
-    def update_config(self, **kwargs) -> None:
-        """設定の更新"""
+    def update_config(self, config_dict: Dict[str, Any]) -> None:
+        """
+        設定の更新
+        Args:
+            config_dict (Dict[str, Any]): 更新する設定のディクショナリ
+        """
         try:
-            for key, value in kwargs.items():
+            # 出力設定の特別処理
+            if "output" in config_dict:
+                output_config = config_dict["output"]
+                if isinstance(output_config, dict):
+                    self.config.output = OutputConfig(**output_config)
+                else:
+                    logger.warning("Invalid output configuration format")
+                del config_dict["output"]
+
+            # その他の設定を更新
+            for key, value in config_dict.items():
                 if hasattr(self.config, key):
                     setattr(self.config, key, value)
                 else:
                     logger.warning(f"Unknown configuration key: {key}")
+            
             self.save_config()
+            logger.info("Configuration updated successfully")
         except Exception as e:
             logger.error(f"Error updating configuration: {str(e)}")
             raise ConfigError(f"Failed to update configuration: {str(e)}")
