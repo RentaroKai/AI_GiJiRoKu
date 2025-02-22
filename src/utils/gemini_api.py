@@ -125,7 +125,8 @@ class GeminiAPI:
             # model = genai.GenerativeModel('gemini-2.0-flash')
             # モデルの初期化
             model = genai.GenerativeModel(
-                model_name="gemini-2.0-pro-exp-02-05",
+                model_name="gemini-2.0-flash",
+                #model_name="gemini-2.0-pro-exp-02-05",
                 generation_config=self.generation_config,
                 system_instruction=self.system_prompt
             )
