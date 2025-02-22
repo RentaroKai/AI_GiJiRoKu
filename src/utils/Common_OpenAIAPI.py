@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # 定数定義
 DEFAULT_CHAT_MODEL = "gpt-4o"
-DEFAULT_REASONING_MODEL = "o3-mini"
+DEFAULT_ST_MODEL = "gpt-4o-mini"
 #DEFAULT_VISION_MODEL = "gpt-4o"
 DEFAULT_AUDIO_MODEL = "whisper-1"
 DEFAULT_4oAUDIO_MODEL = "gpt-4o-mini-audio-preview"
@@ -150,7 +150,7 @@ def generate_audio_chat_response(audio_file_path, system_prompt, temperature=DEF
         raise APIError(f"音声チャットレスポンスの生成に失敗しました: {str(e)}")
 
 def generate_structured_chat_response(system_prompt: str, user_message_content: str, json_schema: dict,
-                                   temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_REASONING_MODEL):
+                                   temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_ST_MODEL):
     """構造化されたJSONレスポンスを生成する関数
 
     Args:
@@ -172,8 +172,7 @@ def generate_structured_chat_response(system_prompt: str, user_message_content: 
             "response_format": {
                 "type": "json_schema",
                 "json_schema": json_schema
-            },
-            "reasoning_effort": "high"
+            }
         }
 
         if system_prompt:
@@ -232,6 +231,36 @@ MEETING_TRANSCRIPT_SCHEMA = {
     }
 }
 
+# Added meeting title schema for title generation
+MEETING_TITLE_SCHEMA = {
+    "name": "meeting_title",
+    "strict": True,
+    "schema": {
+        "type": "object",
+        "properties": {
+            "title": {
+                "type": "string",
+                "description": "The title of the meeting."
+            }
+        },
+        "required": ["title"],
+        "additionalProperties": False
+    }
+}
+
+def generate_meeting_title(transcript_text: str, temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_ST_MODEL) -> str:
+    """Generate the meeting title from the transcript text using a structured chat response."""
+    system_prompt = "会議の書き起こしからこの会議のメインとなる議題が何だったのかを教えて。例：取引先とカフェの方向性に関する会議"
+    response = generate_structured_chat_response(system_prompt=system_prompt, user_message_content=transcript_text, json_schema=MEETING_TITLE_SCHEMA, temperature=temperature, model_name=model_name)
+    try:
+        import json
+        response_json = json.loads(response)
+        meeting_title = response_json.get("title", "").strip()
+        logger.info(f"Generated meeting title: {meeting_title}")
+        return meeting_title
+    except Exception as e:
+        logger.error(f"Failed to parse meeting title response: {str(e)}")
+        raise e
 
 # system_prompt = """あなたは会議の書き起こしを行う専門家です。
 # 音声ファイルに忠実な書き起こしテキストを作成してください。"""

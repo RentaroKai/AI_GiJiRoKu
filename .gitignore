@@ -65,3 +65,6 @@ check_env.py
 src/services/_audio.py
 src/services/_format_converter.py
 doc/*
+
+test_*
+要件定義書＿会議名を書かせる.md
