@@ -141,73 +141,6 @@ def setup_default_output_dir():
         print(error_msg)
         raise
 
-def setup_config():
-    """設定ファイルの初期化（存在する場合は初期化しない）"""
-    try:
-        # transcription_config.jsonの初期化（存在しない場合のみ）
-        config_dir = Path("config")
-        config_dir.mkdir(parents=True, exist_ok=True)
-        
-        # デフォルトの出力ディレクトリを設定
-        default_output_dir = setup_default_output_dir()
-        
-        transcription_config_path = config_dir / "transcription_config.json"
-        if not transcription_config_path.exists():
-            logger.info("書き起こし設定ファイルが存在しないため、新規作成します")
-            default_transcription_config = {
-                "transcription": {
-                    "method": "whisper_gpt4",
-                    "segment_length_seconds": 300
-                },
-                "output": {
-                    "default_dir": str(default_output_dir)
-                }
-            }
-            with open(transcription_config_path, "w", encoding="utf-8") as f:
-                json.dump(default_transcription_config, f, indent=2, ensure_ascii=False)
-            logger.info("書き起こし設定ファイルを作成しました")
-            print(f"書き起こし設定ファイルを作成しました: {transcription_config_path}")
-        else:
-            # 既存の設定ファイルを読み込んで必要なパラメータを確認・追加
-            with open(transcription_config_path, "r", encoding="utf-8") as f:
-                config = json.load(f)
-            
-            updated = False
-            # transcriptionセクションがない場合は作成
-            if "transcription" not in config:
-                config["transcription"] = {}
-                updated = True
-            
-            # 必須パラメータの確認と設定（既存の値は保持）
-            if "method" not in config["transcription"]:
-                config["transcription"]["method"] = "whisper_gpt4"
-                updated = True
-            
-            # segment_length_secondsが存在しない場合のみ追加
-            if "segment_length_seconds" not in config["transcription"]:
-                config["transcription"]["segment_length_seconds"] = 300
-                updated = True
-                logger.info("分割時間のデフォルト値(300秒)を設定しました")
-            
-            if "output" not in config:
-                config["output"] = {"default_dir": str(default_output_dir)}
-                updated = True
-            elif "default_dir" not in config["output"]:
-                config["output"]["default_dir"] = str(default_output_dir)
-                updated = True
-            
-            # 変更があった場合は保存（既存の設定を保持したまま）
-            if updated:
-                with open(transcription_config_path, "w", encoding="utf-8") as f:
-                    json.dump(config, f, indent=2, ensure_ascii=False)
-                logger.info("既存の設定ファイルに必要なパラメータを追加しました")
-                print(f"書き起こし設定ファイルが更新されました: {transcription_config_path}")
-            else:
-                logger.info("既存の書き起こし設定ファイルを使用します")
-    except Exception as e:
-        logger.error(f"設定ファイルの初期化中にエラーが発生しました: {e}")
-        raise
-
 def load_config():
     """設定ファイルを読み込む"""
     try:
@@ -241,8 +174,8 @@ def process_audio_file(input_file, config):
         else:
             # 既存の処理（Whisper + GPT-4など）
             logger.info("既存の処理方式を使用します")
-            from src.audio_processing import process_audio
-            output_file = process_audio(input_file, output_dir, config)
+            from src.services.processor import process_audio_file
+            output_file = process_audio_file(input_file, {"transcribe": True})
         
         logger.info(f"文字起こしが完了しました。結果は {output_file} に保存されました")
         return output_file
@@ -262,10 +195,6 @@ def main():
         logger.info(f"アプリケーションを起動中... (実行パス: {BASE_DIR})")
         logger.debug(f"実行パス: {BASE_DIR}")
         logger.debug(f"アプリケーションパス: {APP_DIR}")
-        
-        # 設定ファイルの初期化
-        logger.info("設定ファイルを初期化します...")
-        setup_config()
         
         # FFmpegの設定
         logger.info("FFmpegの設定を開始します...")

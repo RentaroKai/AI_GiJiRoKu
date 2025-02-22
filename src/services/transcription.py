@@ -18,7 +18,7 @@ class TranscriptionError(Exception):
     pass
 
 class TranscriptionService:
-    def __init__(self, output_dir: str = "output/transcriptions", config_path: str = "config/transcription_config.json"):
+    def __init__(self, output_dir: str = "output/transcriptions", config_path: str = "config/settings.json"):
         self.output_dir = pathlib.Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"出力ディレクトリを作成/確認: {self.output_dir}")

@@ -15,6 +15,11 @@ class OutputConfig(BaseModel):
     """出力設定モデル"""
     default_dir: str = "output"
 
+class TranscriptionConfig(BaseModel):
+    """文字起こし設定モデル"""
+    method: str = "whisper_gpt4"
+    segment_length_seconds: int = 300
+
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""
     openai_api_key: Optional[str] = None
@@ -25,6 +30,7 @@ class AppConfig(BaseModel):
     log_retention_days: int = 7
     max_audio_size_mb: int = 1024  # 1GB
     temp_file_retention_hours: int = 24
+    transcription: TranscriptionConfig = TranscriptionConfig()
 
     class Config:
         arbitrary_types_allowed = True
@@ -76,6 +82,15 @@ class ConfigManager:
                 else:
                     logger.warning("Invalid output configuration format")
                 del config_dict["output"]
+
+            # 文字起こし設定の特別処理
+            if "transcription" in config_dict:
+                transcription_config = config_dict["transcription"]
+                if isinstance(transcription_config, dict):
+                    self.config.transcription = TranscriptionConfig(**transcription_config)
+                else:
+                    logger.warning("Invalid transcription configuration format")
+                del config_dict["transcription"]
 
             # その他の設定を更新
             for key, value in config_dict.items():
