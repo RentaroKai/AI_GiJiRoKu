@@ -25,6 +25,7 @@
 ###  GOOGLE APIキーの取得
 
 無料のGOOGLEのAPIキーも使えます(学習に使われます)。
+OPENAIのAPIキーは原則として必須ですが、書き起こしだけGOOGLEのAPIキーを使うことが可能です。
 
 1. [GOOGLEのウェブサイト](https://aistudio.google.com/app/apikey)でAPIキーを作成
 2. 作成されたAPIキーを設定画面から入力するか、環境変数「GOOGLE_API_KEY」に設定してください。

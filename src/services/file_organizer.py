@@ -66,7 +66,7 @@ class FileOrganizer:
         """
         try:
             # 必要なディレクトリの存在確認と作成
-            required_dirs = ['output', 'output/transcriptions', 'output/csv', 'output/minutes']
+            required_dirs = ['output', 'output/transcriptions', 'output/csv', 'output/minutes', 'output/title']
             for dir_path in required_dirs:
                 if not os.path.exists(dir_path):
                     os.makedirs(dir_path)
@@ -74,13 +74,13 @@ class FileOrganizer:
                         print(f"[DEBUG] 一時ディレクトリを作成: {dir_path}")
 
             # 会議タイトルの取得
-            summary_file = f"output/transcriptions/transcription_summary_{timestamp}.txt"
-            if not os.path.exists(summary_file):
+            meeting_title_file = f"output/title/meetingtitle_{timestamp}.txt"
+            if not os.path.exists(meeting_title_file):
                 if self.debug_mode:
-                    print(f"[DEBUG] サマリーファイルが見つかりません: {summary_file}")
+                    print(f"[DEBUG] タイトルファイルが見つかりません: {meeting_title_file}")
                 meeting_title = "未定義会議"
             else:
-                meeting_title = self.file_utils.get_meeting_title(summary_file)
+                meeting_title = self.file_utils.get_meeting_title(meeting_title_file)
 
             # 日付の取得（タイムスタンプから）
             try:
@@ -126,7 +126,9 @@ class FileOrganizer:
         files_to_process = {
             f"output/csv/transcription_summary_{timestamp}.csv": f"{date}_{meeting_title}_発言記録.csv",
             f"output/minutes/transcription_summary_{timestamp}_minutes.md": f"{date}_{meeting_title}_議事録まとめ.md",
-            f"output/minutes/{timestamp}_reflection.md": f"{date}_{meeting_title}_振り返り.md"
+            f"output/minutes/{timestamp}_reflection.md": f"{date}_{meeting_title}_振り返り.md",
+            f"output/transcriptions/transcription_summary_{timestamp}.txt": f"{date}_{meeting_title}_書き起こし.txt",
+            f"output/title/meetingtitle_{timestamp}.txt": f"{date}_{meeting_title}_タイトル.txt"
         }
 
         successful_copies = []  # コピーに成功したファイルのリスト

@@ -16,17 +16,10 @@ class FileUtils:
             with open(file_path, 'r', encoding='utf-8') as f:
                 content = f.read()
                 
-                # JSONとして解析を試みる
-                try:
-                    data = json.loads(content)
-                    if isinstance(data, dict) and "meeting_title" in data:
-                        return data["meeting_title"]
-                except json.JSONDecodeError:
-                    pass
-                
                 # 正規表現でタイトルを探す
                 title_patterns = [
-                    r'"meeting_title":\s*"([^"]+)"',  # JSON形式
+                    r'"title":\s*"([^"]+)"',         # "title": "XXX" 形式
+                    r'"meeting_title":\s*"([^"]+)"',  # "meeting_title": "XXX" 形式
                     r'会議タイトル[:：]\s*(.+)',      # 日本語形式
                     r'タイトル[:：]\s*(.+)',          # 簡略形式
                     r'件名[:：]\s*(.+)',              # 別形式
