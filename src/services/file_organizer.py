@@ -128,6 +128,7 @@ class FileOrganizer:
             f"output/minutes/transcription_summary_{timestamp}_minutes.md": f"{date}_{meeting_title}_議事録まとめ.md",
             f"output/minutes/{timestamp}_reflection.md": f"{date}_{meeting_title}_振り返り.md",
             f"output/transcriptions/transcription_summary_{timestamp}.txt": f"{date}_{meeting_title}_書き起こし.txt",
+            f"output/transcriptions/transcription_{timestamp}.txt": f"{date}_{meeting_title}_書き起こし_raw.txt",
             f"output/title/meetingtitle_{timestamp}.txt": f"{date}_{meeting_title}_タイトル.txt"
         }
 

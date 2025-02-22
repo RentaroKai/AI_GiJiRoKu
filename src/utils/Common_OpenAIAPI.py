@@ -13,7 +13,8 @@ logger = logging.getLogger(__name__)
 
 # 定数定義
 DEFAULT_CHAT_MODEL = "gpt-4o"
-DEFAULT_ST_MODEL = "gpt-4o-mini"
+DEFAULT_ST_MODEL = "gpt-4o"
+DEFAULT_STTITLE_MODEL = "gpt-4o-mini"
 #DEFAULT_VISION_MODEL = "gpt-4o"
 DEFAULT_AUDIO_MODEL = "whisper-1"
 DEFAULT_4oAUDIO_MODEL = "gpt-4o-mini-audio-preview"
@@ -202,10 +203,6 @@ MEETING_TRANSCRIPT_SCHEMA = {
     "schema": {
         "type": "object",
         "properties": {
-            "meeting_title": {
-                "type": "string",
-                "description": "会議の議題やタイトル"
-            },
             "conversations": {
                 "type": "array",
                 "description": "会議での発言のリスト",
@@ -226,7 +223,7 @@ MEETING_TRANSCRIPT_SCHEMA = {
                 }
             }
         },
-        "required": ["meeting_title", "conversations"],
+        "required": ["conversations"],
         "additionalProperties": False
     }
 }
@@ -248,7 +245,7 @@ MEETING_TITLE_SCHEMA = {
     }
 }
 
-def generate_meeting_title(transcript_text: str, temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_ST_MODEL) -> str:
+def generate_meeting_title(transcript_text: str, temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_STTITLE_MODEL) -> str:
     """Generate the meeting title from the transcript text using a structured chat response."""
     system_prompt = "会議の書き起こしからこの会議のメインとなる議題が何だったのかを教えて。例：取引先とカフェの方向性に関する会議"
     response = generate_structured_chat_response(system_prompt=system_prompt, user_message_content=transcript_text, json_schema=MEETING_TITLE_SCHEMA, temperature=temperature, model_name=model_name)

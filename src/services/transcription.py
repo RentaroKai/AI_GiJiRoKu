@@ -4,7 +4,7 @@ import logging
 import datetime
 import json
 from typing import Dict, Any, Literal
-from ..utils.Common_OpenAIAPI import generate_transcribe_from_audio, generate_chat_response, generate_audio_chat_response, APIError
+from ..utils.Common_OpenAIAPI import generate_transcribe_from_audio, generate_structured_chat_response, generate_audio_chat_response, APIError, MEETING_TRANSCRIPT_SCHEMA
 from ..utils.gemini_api import GeminiAPI
 import sys
 
@@ -164,7 +164,11 @@ class TranscriptionService:
             logger.info(f"追加プロンプトあり（長さ: {len(additional_prompt)}文字）")
         
         full_prompt = f"{additional_prompt}\n{transcription}" if additional_prompt else transcription
-        formatted_text = generate_chat_response(self.system_prompt, full_prompt)
+        formatted_text = generate_structured_chat_response(
+            system_prompt=self.system_prompt,
+            user_message_content=full_prompt,
+            json_schema=MEETING_TRANSCRIPT_SCHEMA
+        )
         
         if not formatted_text:
             logger.error("テキスト整形の結果が空です")

@@ -47,12 +47,8 @@ class GeminiAPI:
             "response_schema": content.Schema(
                 type=content.Type.OBJECT,
                 enum=[],
-                required=["meeting_title", "conversations"],
+                required=["conversations"],
                 properties={
-                    "meeting_title": content.Schema(
-                        type=content.Type.STRING,
-                        description="会議のタイトル",
-                    ),
                     "conversations": content.Schema(
                         type=content.Type.ARRAY,
                         description="会話の記録の配列",
@@ -81,12 +77,10 @@ class GeminiAPI:
         self.system_prompt = """あなたは会議の書き起こしを行う専門家です。
 以下の点に注意して、音声ファイルに忠実な書き起こしテキストを作成してください：
 
-1. 会議の議題やタイトルを特定したらmeeting_titleとして書く
 2. 発言者と発言内容を分けて表示
 3. 発言の整形は最小限にとどめ、発言をそのまま書き起こす
 4. 以下のJSON形式で出力：
 {
-  "meeting_title": "会議の議題/タイトル",
   "conversations": [
     {
       "speaker": "発言者名",
@@ -131,7 +125,7 @@ class GeminiAPI:
             # model = genai.GenerativeModel('gemini-2.0-flash')
             # モデルの初期化
             model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
+                model_name="gemini-2.0-pro-exp-02-05",
                 generation_config=self.generation_config,
                 system_instruction=self.system_prompt
             )
