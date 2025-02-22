@@ -298,7 +298,7 @@ class SettingsDialog(tk.Toplevel):
         )
         
         # 分割時間設定
-        self.segment_length_frame = ttk.LabelFrame(self, text="音声分割時間（秒）", padding=5)
+        self.segment_length_frame = ttk.LabelFrame(self, text="Geminiの場合のみ-分割処理用の秒数", padding=5)
         self.segment_length_var = tk.StringVar(value=str(self.segment_length))
         self.segment_length_entry = ttk.Entry(self.segment_length_frame, textvariable=self.segment_length_var)
         
