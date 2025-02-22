@@ -86,13 +86,35 @@ def setup_ffmpeg():
         raise
 
 def cleanup_temp():
-    """一時ファイルのクリーンアップ"""
+    """一時ファイルおよびoutputフォルダー内のmp3とjsonファイルのクリーンアップを行う"""
+    # 一時ファイルのクリーンアップ
     try:
         if TEMP_DIR.exists():
             shutil.rmtree(TEMP_DIR)
             logging.info("一時ファイルのクリーンアップが完了しました")
     except Exception as e:
         logging.error(f"一時ファイルの削除中にエラーが発生しました: {e}")
+        print(f"一時ファイルの削除中にエラーが発生しました: {e}")
+
+    # outputフォルダー内のmp3とjsonファイルの削除
+    try:
+        output_folder = Path("output")
+        if output_folder.exists():
+            for file in output_folder.rglob("*"):
+                if file.is_file() and file.suffix.lower() in [".mp3", ".json"]:
+                    try:
+                        file.unlink()
+                        logging.info(f"削除しました: {file}")
+                        print(f"削除しました: {file}")
+                    except Exception as ex:
+                        logging.error(f"{file} の削除に失敗: {ex}")
+                        print(f"{file} の削除に失敗: {ex}")
+        else:
+            logging.info("outputフォルダーが存在しません。")
+            print("outputフォルダーが存在しません。")
+    except Exception as e:
+        logging.error(f"outputフォルダー内のファイル削除中にエラー: {e}")
+        print(f"outputフォルダー内のファイル削除中にエラー: {e}")
 
 # srcディレクトリをPythonパスに追加
 sys.path.insert(0, str(BASE_DIR))
