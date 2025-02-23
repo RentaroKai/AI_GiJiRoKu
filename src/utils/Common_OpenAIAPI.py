@@ -17,7 +17,7 @@ DEFAULT_ST_MODEL = "gpt-4o"
 DEFAULT_STTITLE_MODEL = "gpt-4o-mini"
 #DEFAULT_VISION_MODEL = "gpt-4o"
 DEFAULT_AUDIO_MODEL = "whisper-1"
-DEFAULT_4oAUDIO_MODEL = "gpt-4o-mini-audio-preview"
+DEFAULT_4oAUDIO_MODEL = "gpt-4o-audio-preview"
 DEFAULT_TEMPERATURE = 0.1
 DEFAULT_MAX_TOKENS = ""
 

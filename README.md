@@ -132,9 +132,9 @@ pyinstaller GiJiRoKu.spec
 - **Google APIキー**: GEMINI方式での書き起こしに使用します（任意）。ここに入れるか、環境変数「GOOGLE_API_KEY」に設定してください。
 
 #### 書き起こし方式の選択
-- **Whisper方式**: OpenAIの高精度な音声認識を使用（安い）
-- **GPT-4 Audio方式**: OpenAIの高精度な音声認識を使用（ふつう）
-- **Gemini方式**: Googleの無料APIを使用（めちゃくちゃ安い）
+- **Whisper方式**: OpenAIの高精度な音声認識を使用（安い・クオリティ低い）
+- **GPT-4 Audio方式**: OpenAIの高精度な音声認識を使用（10分30円くらい・クオリティ高い）
+- **Gemini方式**: Googleの無料APIを使用（めちゃくちゃ安い・クオリティ高い）
 
 #### 分割処理用の秒数
 - **推奨値**: 300秒
