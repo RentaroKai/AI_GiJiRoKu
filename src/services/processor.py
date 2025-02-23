@@ -85,7 +85,11 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 logger.info("議事録生成を開始")
                 minutes_service = MinutesService()
                 minutes_result = minutes_service.generate_minutes(transcription_result["formatted_file"])
-                results["minutes"] = minutes_result["minutes_file"]
+                # 戻り値のキーを適切に取り扱う
+                results["minutes"] = minutes_result.get("file_path") or minutes_result.get("minutes_file")
+                if not results["minutes"]:
+                    logger.error("議事録ファイルのパスが取得できませんでした")
+                    raise ValueError("議事録ファイルのパスが取得できませんでした")
             
             # 反省点抽出
             if modes["reflection"]:

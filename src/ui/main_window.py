@@ -12,7 +12,7 @@ from ..services.csv_converter import CSVConverterService, CSVConversionError
 from ..services.file_organizer import FileOrganizer
 from ..utils.config import config_manager, ConfigError
 from ..services.processor import process_audio_file
-#import json
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -257,29 +257,19 @@ class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("設定")
-        self.geometry("400x500")  # 高さを500に増やす
-        self.transient(parent)
-        self.grab_set()
-        
-        self.config = config_manager.get_config()
-        # 設定値の取得（dictの場合とオブジェクトの場合の両方に対応）
-        if isinstance(self.config, dict):
-            self.transcription_method = self.config.get("transcription", {}).get("method", "whisper_gpt4")
-            self.segment_length = self.config.get("transcription", {}).get("segment_length_seconds", 300)
-            self.openai_api_key = self.config.get("openai_api_key", "")
-            self.gemini_api_key = self.config.get("gemini_api_key", "")
-            self.debug_mode = self.config.get("debug_mode", False)
-            self.output_dir = self.config.get("output", {}).get("default_dir", "output")
-        else:
-            self.transcription_method = self.config.transcription.method
-            self.segment_length = self.config.transcription.segment_length_seconds
-            self.openai_api_key = self.config.openai_api_key or ""
-            self.gemini_api_key = self.config.gemini_api_key or ""
-            self.debug_mode = self.config.debug_mode
-            self.output_dir = self.config.output.default_dir
-        
+        self.resizable(False, False)
+
+        # 設定の読み込み
+        self.config = self._load_config()
+        self.openai_api_key = self.config.get("openai_api_key", "")
+        self.gemini_api_key = self.config.get("gemini_api_key", "")
+        self.transcription_method = self.config.get("transcription", {}).get("method", "gpt4_audio")
+        self.segment_length = self.config.get("transcription", {}).get("segment_length_seconds", 300)
+        self.summarization_model = self.config.get("summarization", {}).get("model", "openai")
+        self.output_dir = self.config.get("output", {}).get("default_dir", os.path.expanduser("~/Documents/議事録"))
+
         self._create_widgets()
-        self._setup_layout()
+        self._layout_widgets()
 
     def _create_widgets(self):
         """設定ダイアログのウィジェット作成"""
@@ -319,7 +309,23 @@ class SettingsDialog(tk.Toplevel):
         self.segment_length_frame = ttk.LabelFrame(self, text="Geminiの場合のみ-分割処理用の秒数", padding=5)
         self.segment_length_var = tk.StringVar(value=str(self.segment_length))
         self.segment_length_entry = ttk.Entry(self.segment_length_frame, textvariable=self.segment_length_var)
-        
+
+        # 議事録生成モデル設定
+        self.summarization_frame = ttk.LabelFrame(self, text="議事録生成モデル", padding=5)
+        self.summarization_var = tk.StringVar(value=self.summarization_model)
+        self.summarization_openai = ttk.Radiobutton(
+            self.summarization_frame,
+            text="OpenAI方式",
+            value="openai",
+            variable=self.summarization_var
+        )
+        self.summarization_gemini = ttk.Radiobutton(
+            self.summarization_frame,
+            text="Gemini方式",
+            value="gemini",
+            variable=self.summarization_var
+        )
+
         # 出力ディレクトリ設定
         self.output_dir_var = tk.StringVar(value=self.output_dir)
         self.output_dir_frame = ttk.LabelFrame(self, text="出力ディレクトリ", padding=5)
@@ -329,62 +335,42 @@ class SettingsDialog(tk.Toplevel):
             text="参照",
             command=self._browse_output_dir
         )
+
+        # 保存ボタン
+        self.save_button = ttk.Button(self, text="保存", command=self._save_settings)
+
+    def _layout_widgets(self):
+        """ウィジェットのレイアウト"""
+        # OpenAI API Key
+        self.api_key_frame.pack(fill="x", padx=5, pady=5)
+        self.api_key_entry.pack(fill="x", padx=5, pady=5)
         
-        # デバッグモード設定
-        self.debug_var = tk.BooleanVar(value=self.debug_mode)
-        self.debug_check = ttk.Checkbutton(
-            self,
-            text="デバッグモード",
-            variable=self.debug_var
-        )
+        # Gemini API Key
+        self.gemini_api_key_frame.pack(fill="x", padx=5, pady=5)
+        self.gemini_api_key_entry.pack(fill="x", padx=5, pady=5)
+        
+        # 書き起こし方式
+        self.transcription_frame.pack(fill="x", padx=5, pady=5)
+        self.transcription_whisper.pack(anchor="w", padx=5, pady=2)
+        self.transcription_gpt4audio.pack(anchor="w", padx=5, pady=2)
+        self.transcription_gemini.pack(anchor="w", padx=5, pady=2)
+        
+        # 分割時間
+        self.segment_length_frame.pack(fill="x", padx=5, pady=5)
+        self.segment_length_entry.pack(fill="x", padx=5, pady=5)
+
+        # 議事録生成モデル
+        self.summarization_frame.pack(fill="x", padx=5, pady=5)
+        self.summarization_openai.pack(anchor="w", padx=5, pady=2)
+        self.summarization_gemini.pack(anchor="w", padx=5, pady=2)
+
+        # 出力ディレクトリ
+        self.output_dir_frame.pack(fill="x", padx=5, pady=5)
+        self.output_dir_entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
+        self.output_dir_button.pack(side="left", padx=5)
         
         # 保存ボタン
-        self.save_button = ttk.Button(
-            self,
-            text="保存",
-            command=self._save_settings
-        )
-        
-        # キャンセルボタン
-        self.cancel_button = ttk.Button(
-            self,
-            text="キャンセル",
-            command=self.destroy
-        )
-
-    def _setup_layout(self):
-        """設定ダイアログのレイアウト設定"""
-        # OpenAI API Key設定
-        self.api_key_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.api_key_entry.pack(fill=tk.X, padx=5)
-        
-        # Gemini API Key設定
-        self.gemini_api_key_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.gemini_api_key_entry.pack(fill=tk.X, padx=5)
-        
-        # 書き起こし方式設定
-        self.transcription_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.transcription_whisper.pack(fill=tk.X, padx=5, pady=2)
-        self.transcription_gpt4audio.pack(fill=tk.X, padx=5, pady=2)
-        self.transcription_gemini.pack(fill=tk.X, padx=5, pady=2)
-        
-        # 分割時間設定
-        self.segment_length_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.segment_length_entry.pack(fill=tk.X, padx=5)
-        
-        # 出力ディレクトリ設定
-        self.output_dir_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.output_dir_entry.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(5, 0))
-        self.output_dir_button.pack(side=tk.LEFT, padx=5)
-        
-        # デバッグモード設定
-        self.debug_check.pack(padx=10, pady=5)
-        
-        # ボタン
-        button_frame = ttk.Frame(self)
-        button_frame.pack(fill=tk.X, padx=10, pady=5)
-        self.save_button.pack(side=tk.RIGHT, padx=5)
-        self.cancel_button.pack(side=tk.RIGHT, padx=5)
+        self.save_button.pack(pady=10)
 
     def _browse_output_dir(self):
         """出力ディレクトリを選択するダイアログを表示"""
@@ -401,33 +387,49 @@ class SettingsDialog(tk.Toplevel):
             self.output_dir_var.set(directory)
 
     def _save_settings(self):
-        """設定を保存"""
+        """設定の保存"""
         try:
             # 分割時間の検証
             try:
-                segment_length = int(self.segment_length_var.get())
-                if segment_length <= 0:
-                    raise ValueError("分割時間は正の整数である必要があります")
-            except ValueError as e:
-                messagebox.showerror("エラー", f"分割時間の設定が不正です: {str(e)}")
-                return
+                with open("config/settings.json", "r", encoding="utf-8") as f:
+                    config = json.load(f)
+            except (FileNotFoundError, json.JSONDecodeError):
+                config = {}
 
-            # 設定の更新
-            config_manager.update_config({
+            # 既存の設定を保持しながら新しい設定を更新
+            config.update({
                 "openai_api_key": self.api_key_var.get(),
                 "gemini_api_key": self.gemini_api_key_var.get(),
-                "debug_mode": self.debug_var.get(),
                 "output": {
                     "default_dir": self.output_dir_var.get()
-                },
+                },                
                 "transcription": {
                     "method": self.transcription_var.get(),
-                    "segment_length_seconds": segment_length
-                }
+                    "segment_length_seconds": int(self.segment_length_var.get())
+                },
+                "summarization": {
+                    "model": self.summarization_var.get()
+                },
+
             })
             
-            messagebox.showinfo("設定", "設定を保存しました")
+            # 設定ディレクトリが存在しない場合は作成
+            os.makedirs("config", exist_ok=True)
+            
+            # 設定を保存
+            with open("config/settings.json", "w", encoding="utf-8") as f:
+                json.dump(config, f, indent=4, ensure_ascii=False)
+            
             self.destroy()
+            messagebox.showinfo("成功", "設定を保存しました")
             
         except Exception as e:
-            messagebox.showerror("エラー", f"設定の保存中にエラーが発生しました：{str(e)}") 
+            messagebox.showerror("エラー", f"設定の保存に失敗しました: {str(e)}")
+
+    def _load_config(self):
+        """設定の読み込み"""
+        try:
+            with open("config/settings.json", "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {} 
