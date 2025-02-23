@@ -68,8 +68,33 @@ class MinutesService:
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
             # プロンプトの読み込み
-            with open(prompt_path, 'r', encoding='utf-8') as f:
-                prompt = f.read().strip()
+            if getattr(sys, 'frozen', False):
+                # PyInstallerで実行している場合
+                base_path = pathlib.Path(sys._MEIPASS)
+                prompt_path = base_path / "src/prompts/minutes.txt"
+                logger.info(f"PyInstaller実行モード - プロンプトパス: {prompt_path}")
+            else:
+                # 通常の実行の場合
+                prompt_path = pathlib.Path("src/prompts/minutes.txt")
+                logger.info(f"通常実行モード - プロンプトパス: {prompt_path}")
+
+            if not prompt_path.exists():
+                logger.error(f"議事録プロンプトファイルが見つかりません: {prompt_path}")
+                logger.error(f"現在のディレクトリ: {os.getcwd()}")
+                logger.error(f"ディレクトリ内容: {list(prompt_path.parent.glob('**/*'))}")
+                raise MinutesError(f"議事録プロンプトファイルが見つかりません: {prompt_path}")
+
+            try:
+                logger.info(f"プロンプトファイルを読み込み中: {prompt_path}")
+                with open(prompt_path, 'r', encoding='utf-8') as f:
+                    prompt = f.read().strip()
+            except UnicodeDecodeError:
+                # UTF-8で失敗した場合、CP932で試行
+                with open(prompt_path, 'r', encoding='cp932') as f:
+                    prompt = f.read().strip()
+            except Exception as e:
+                logger.error(f"プロンプトファイルの読み込み中にエラー: {str(e)}")
+                raise MinutesError(f"プロンプトファイルの読み込みに失敗しました: {str(e)}")
 
             # Summarizerの生成
             summarizer = SummarizerFactory.create_summarizer(self.config_path)
