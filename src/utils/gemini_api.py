@@ -9,16 +9,22 @@ from google.ai.generativelanguage_v1beta.types import content
 
 logger = logging.getLogger(__name__)
 
+# デフォルトのモデル設定
+DEFAULT_TRANSCRIPTION_MODEL = "gemini-2.0-flash"  # 書き起こし用のデフォルトモデル
+DEFAULT_MINUTES_MODEL = "gemini-2.0-pro-exp-02-05"  # 議事録まとめ用のデフォルトモデル
+
 class TranscriptionError(Exception):
     """書き起こし処理中のエラーを表すカスタム例外"""
     pass
 
 class GeminiAPI:
-    def __init__(self, api_key: str = ""):
+    def __init__(self, api_key: str = "", transcription_model: str = DEFAULT_TRANSCRIPTION_MODEL, minutes_model: str = DEFAULT_MINUTES_MODEL):
         """Initialize Gemini API client
 
         Args:
             api_key (str): Gemini API key. 環境変数GOOGLE_API_KEYが優先されます。
+            transcription_model (str): 書き起こし用のモデル名。デフォルトはDEFAULT_TRANSCRIPTION_MODEL
+            minutes_model (str): 議事録まとめ用のモデル名。デフォルトはDEFAULT_MINUTES_MODEL
         """
         # SSL証明書の設定
         cert_path = os.environ.get('SSL_CERT_FILE')
@@ -44,33 +50,16 @@ class GeminiAPI:
             "top_p": 0.95,
             "top_k": 40,
             "max_output_tokens": 8192,
-            "response_schema": content.Schema(
-                type=content.Type.OBJECT,
-                enum=[],
-                required=["conversations"],
-                properties={
-                    "conversations": content.Schema(
-                        type=content.Type.ARRAY,
-                        description="会話の記録の配列",
-                        items=content.Schema(
-                            type=content.Type.OBJECT,
-                            enum=[],
-                            required=["speaker", "utterance"],
-                            properties={
-                                "speaker": content.Schema(
-                                    type=content.Type.STRING,
-                                    description="発言者を特定出来る場合は名前、出来ない場合は仮の名前",
-                                ),
-                                "utterance": content.Schema(
-                                    type=content.Type.STRING,
-                                    description="発言内容",
-                                ),
-                            },
-                        ),
-                    ),
-                },
-            ),
             "response_mime_type": "application/json",
+        }
+
+        # 議事録生成用の設定
+        self.minutes_generation_config = {
+            "temperature": 1,
+            "top_p": 0.95,
+            "top_k": 64,
+            "max_output_tokens": 8192,
+            "response_mime_type": "text/plain",
         }
 
         # System prompt for transcription
@@ -91,6 +80,12 @@ class GeminiAPI:
 }
 
 入力された音声の書き起こしテキストを上記の形式に変換してください。 。"""
+
+        # モデル名の設定
+        self.transcription_model = transcription_model
+        self.minutes_model = minutes_model
+        logger.info(f"書き起こしモデル: {self.transcription_model}")
+        logger.info(f"議事録まとめモデル: {self.minutes_model}")
 
     def upload_file(self, file_path: str, mime_type: Optional[str] = None) -> Any:
         """Upload a file to Gemini API
@@ -121,12 +116,9 @@ class GeminiAPI:
             if not os.path.exists(audio_file_path):
                 raise TranscriptionError(f"音声ファイルが見つかりません: {audio_file_path}")
 
-            # モデルの初期化　いったん古いやつでもいけるのか確かめる
-            # model = genai.GenerativeModel('gemini-2.0-flash')
             # モデルの初期化
             model = genai.GenerativeModel(
-                model_name="gemini-2.0-flash",
-                #model_name="gemini-2.0-pro-exp-02-05",
+                model_name=self.transcription_model,
                 generation_config=self.generation_config,
                 system_instruction=self.system_prompt
             )
@@ -159,3 +151,43 @@ class GeminiAPI:
             raise
         except Exception as e:
             raise TranscriptionError(f"Gemini APIの処理に失敗しました: {str(e)}")
+
+    def summarize_minutes(self, text: str, system_prompt: str) -> str:
+        """議事録のまとめを生成する
+
+        Args:
+            text (str): 要約する元のテキスト
+            system_prompt (str): 議事録生成用のシステムプロンプト
+
+        Returns:
+            str: 生成された議事録のまとめ
+        """
+        if not self.api_key:
+            raise TranscriptionError("Gemini API keyが設定されていません")
+
+        try:
+            # モデルの初期化
+            model = genai.GenerativeModel(
+                model_name=self.minutes_model,
+                generation_config=self.minutes_generation_config,
+                system_instruction=system_prompt
+            )
+
+            logger.info("議事録まとめの生成を開始します")
+            
+            # チャットセッションの開始
+            chat = model.start_chat()
+            
+            # 応答の生成
+            response = chat.send_message(text)
+
+            if not response.text:
+                raise TranscriptionError("Gemini APIからの応答が空です")
+
+            logger.info(f"議事録まとめを生成しました（{len(response.text)}文字）")
+            return response.text
+
+        except Exception as e:
+            error_msg = f"議事録まとめの生成に失敗しました: {str(e)}"
+            logger.error(error_msg)
+            raise TranscriptionError(error_msg)
