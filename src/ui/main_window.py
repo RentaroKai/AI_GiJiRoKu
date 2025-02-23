@@ -149,6 +149,23 @@ class MainWindow:
             else:
                 self.status_var.set("待機中")
 
+    def _animate_status_label(self):
+        """ステータスラベルにアニメーションを表示する"""
+        base_text = "処理中"
+        current_text = self.status_var.get()
+        if current_text.startswith(base_text):
+            if current_text == base_text:
+                new_text = base_text + "."
+            elif current_text == base_text + ".":
+                new_text = base_text + ".."
+            elif current_text == base_text + "..":
+                new_text = base_text + "..."
+            else:
+                new_text = base_text
+            self.status_var.set(new_text)
+            if self.status_var.get().startswith(base_text):
+                self.root.after(500, self._animate_status_label)
+
     def _execute_processing(self):
         """処理の実行"""
         if not self.file_path_var.get():
@@ -158,6 +175,7 @@ class MainWindow:
         # UIの更新
         self.execute_button.config(state="disabled")
         self.status_var.set("処理中...")
+        self._animate_status_label()
         
         # 処理の実行（別スレッド）
         thread = threading.Thread(target=self._process_file)

@@ -59,7 +59,7 @@ class GeminiAPI:
                             properties={
                                 "speaker": content.Schema(
                                     type=content.Type.STRING,
-                                    description="発言者の名前や役職",
+                                    description="発言者を特定出来る場合は名前、出来ない場合は仮の名前",
                                 ),
                                 "utterance": content.Schema(
                                     type=content.Type.STRING,
