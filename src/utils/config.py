@@ -17,8 +17,8 @@ class OutputConfig(BaseModel):
 
 class TranscriptionConfig(BaseModel):
     """文字起こし設定モデル"""
-    method: str = "whisper_gpt4"
-    segment_length_seconds: int = 300
+    method: str = "gpt4_audio"
+    segment_length_seconds: int = 450
 
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""

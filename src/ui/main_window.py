@@ -298,19 +298,19 @@ class SettingsDialog(tk.Toplevel):
         self.transcription_var = tk.StringVar(value=self.transcription_method)
         self.transcription_whisper = ttk.Radiobutton(
             self.transcription_frame,
-            text="Whisper + GPT-4方式（2段階処理）",
+            text="Whisper方式",
             value="whisper_gpt4",
             variable=self.transcription_var
         )
         self.transcription_gpt4audio = ttk.Radiobutton(
             self.transcription_frame,
-            text="GPT-4 Audio方式（一括処理）",
+            text="GPT-4 Audio方式",
             value="gpt4_audio",
             variable=self.transcription_var
         )
         self.transcription_gemini = ttk.Radiobutton(
             self.transcription_frame,
-            text="Gemini方式（一括処理）",
+            text="Gemini方式",
             value="gemini",
             variable=self.transcription_var
         )
