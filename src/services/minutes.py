@@ -1,4 +1,5 @@
 import os
+import sys
 import pathlib
 import logging
 from datetime import datetime
@@ -6,6 +7,7 @@ from typing import Dict, Any, Union
 from pathlib import Path
 
 from ..utils.summarizer_factory import SummarizerFactory, SummarizerFactoryError
+from ..utils.Common_OpenAIAPI import generate_chat_response
 
 logger = logging.getLogger(__name__)
 
