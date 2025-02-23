@@ -10,7 +10,7 @@
 
 ## 🚀 はじめる前に
 
-このアプリは無料で利用できますが、使用するには、GEMINIまたはOpenAIのAPIキーが必要です。
+このアプリは無料で利用できますが、使用するには、OpenAIのAPIキーが必要です。
 
 ###  OpenAI APIキーの取得
 
@@ -73,17 +73,19 @@ OPENAIのAPIキーは原則として必須ですが、書き起こしだけGOOGL
 ## 🔧 必要要件
 
 - Windows 10以上
-- Python 3.8以上（exeファイルを使用する場合は不要）
+- Python 3.9以上（exeファイルを使用する場合は不要）
 
 ## 📦 必要なパッケージ
 
-- openai
-- pydantic (>=2.0.0)
+- openai (>=1.12.0)
+- pydantic (>=2.6.1)
 - pydub (>=0.25.1)
 - pyperclip (>=1.8.2)
-- typing-extensions (>=4.0.0)
+- typing-extensions (>=4.9.0)
 - requests (>=2.31.0)
 - ffmpeg-python (>=0.2.0)
+- google-generativeai (>=0.3.2)
+- python-dotenv (>=1.0.0)
 
 
 
@@ -107,11 +109,13 @@ pyinstaller GiJiRoKu.spec
 
 - `minutes.txt`: 議事録の作成方法と形式
 - `reflection.txt`: 会議の振り返り分析の基準
-- `transcription.txt`: 音声の書き起こし整形ルール  
+- `transcription.txt`: 音声の書き起こし整形ルール
+- `transcriptionGEMINI.txt`: 音声の書き起こし整形ルール（GEMINI方式）
 
 `src/utils/` ディレクトリ内の以下のファイルを編集することで、AIのモデルを指定できます：
 
-- `Common_OpenAIAPI.py`: openAIのモデルの指定を変えられます DEFAULT_CHAT_MODEL = "XXX"の部分をo3-miniなどにすることもできます。
+- `Common_OpenAIAPI.py`: openAIのモデルの指定を変えられます DEFAULT_CHAT_MODEL = "XXX"の部分をかえることもできます。
+
 - `gemini_api.py`: geminiのモデルの指定を変えられます model_name="XXX"を書き換えるとモデルが変更できます。最大文字数も増やせます。
 
 ## 📝 ライセンス情報

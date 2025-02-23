@@ -1,10 +1,10 @@
 import openai
 import os
 import base64
-import requests
+#import requests
 from typing import List, Dict, Any
-from pydantic import BaseModel
-import time
+#from pydantic import BaseModel
+#import time
 import logging
 from pathlib import Path
 

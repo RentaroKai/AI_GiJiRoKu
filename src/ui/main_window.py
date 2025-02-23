@@ -3,7 +3,7 @@ from tkinter import ttk, messagebox, filedialog
 import logging
 import pathlib
 import threading
-import subprocess
+#import subprocess
 import os
 from typing import Optional
 from ..services.audio import AudioProcessor, AudioProcessingError
@@ -12,7 +12,7 @@ from ..services.csv_converter import CSVConverterService, CSVConversionError
 from ..services.file_organizer import FileOrganizer
 from ..utils.config import config_manager, ConfigError
 from ..services.processor import process_audio_file
-import json
+#import json
 
 logger = logging.getLogger(__name__)
 
