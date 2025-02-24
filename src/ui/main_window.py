@@ -258,6 +258,11 @@ class SettingsDialog(tk.Toplevel):
         super().__init__(parent)
         self.title("設定")
         self.resizable(False, False)
+        
+        # ウィンドウを親の上に表示
+        self.transient(parent)
+        self.lift()
+        self.grab_set()  # モーダルダイアログとして設定
 
         # 設定の読み込み
         self.config = self._load_config()
