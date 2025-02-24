@@ -10,7 +10,7 @@
 
 ## 🚀 はじめる前に
 
-このアプリは無料で利用できますが、使用するには、OpenAIのAPIキーが必要です。
+このアプリは基本的にOpenAIのAPIキーまたはGeminiのAPIキーが必要です（どちらか一つあればOK）
 
 ###  OpenAI APIキーの取得
 
@@ -24,12 +24,12 @@
 
 ###  GOOGLE APIキーの取得
 
-任意で、無料のGOOGLE(GEMINI)のAPIキーも使えます。
-OPENAIのAPIキーは原則として必須ですが、書き起こしだけGOOGLEのAPIキーを使うことが可能です。使いたくない場合はAPIキーを登録しなければ使わないで済みます。
+Gemini方式を使用する場合は、GoogleのAPIキーが必要です。
+無料で利用でき、高品質な文字起こしと議事録作成が可能です。
 
 1. [GOOGLEのウェブサイト](https://aistudio.google.com/app/apikey)でAPIキーを作成
 2. 作成されたAPIキーを設定画面から入力するか、環境変数「GOOGLE_API_KEY」に設定してください。
-3. 設定→書き起こし方式　で　「Gemini方式」　を選択する
+3. 設定→両方「Gemini方式」　を選択する
 
 
 ## 🚀 使い方（かんたん版）
@@ -79,16 +79,7 @@ OPENAIのAPIキーは原則として必須ですが、書き起こしだけGOOGL
 
 ## 📦 必要なパッケージ
 
-- openai (>=1.12.0)
-- pydantic (>=2.6.1)
-- pydub (>=0.25.1)
-- pyperclip (>=1.8.2)
-- typing-extensions (>=4.9.0)
-- requests (>=2.31.0)
-- ffmpeg-python (>=0.2.0)
-- google-generativeai (>=0.3.2)
-- python-dotenv (>=1.0.0)
-
+requestsにかいてある
 
 
 ## 📂 プロジェクト構造
@@ -128,16 +119,20 @@ pyinstaller GiJiRoKu.spec
 ### 📝 基本設定
 
 #### APIキー設定
-- **OpenAI APIキー**: 必須。ここに入れるか、環境変数「OPENAI_API_KEY」に設定してください。
-- **Google APIキー**: GEMINI方式での書き起こしに使用します（任意）。ここに入れるか、環境変数「GOOGLE_API_KEY」に設定してください。
+- **OpenAI APIキー**: Whisper方式またはGPT-4 Audio方式を使用する場合に必要です。ここに入れるか、環境変数「OPENAI_API_KEY」に設定してください。
+- **Google APIキー**: GEMINI方式での処理に使用します。Gemini方式を選択する場合は必須です。ここに入れるか、環境変数「GOOGLE_API_KEY」に設定してください。
 
 #### 書き起こし方式の選択
-- **Whisper方式**: OpenAIの高精度な音声認識を使用（安い・クオリティ低い）
+- **Whisper方式**: OpenAIの音声認識を使用（安い・クオリティ低い）
 - **GPT-4 Audio方式**: OpenAIの高精度な音声認識を使用（10分30円くらい・クオリティ高い）
 - **Gemini方式**: Googleの無料APIを使用（無料-めちゃくちゃ安い・クオリティ高い）
 
+#### 議事録生成モデルの選択
+- **OpenAI方式**: OpenAIのモデルを使用して議事録を生成
+- **Gemini方式**: Googleのモデルを使用して議事録を生成
+
 #### 分割処理用の秒数
-- **推奨値**: 300秒
+- **推奨値**: 450秒
 - **この設定が必要な理由**: 
   - 長い音声を一度に処理するとAIが性能的に処理しきれず不安定になるため、適度な長さに分けて処理します
   - 短すぎると話者の判定がぐちゃぐちゃになり、長すぎると文字起こしが不安定になります

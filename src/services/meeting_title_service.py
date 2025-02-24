@@ -3,7 +3,8 @@ import os
 import re
 from datetime import datetime
 from src.utils.file_utils import FileUtils
-from src.utils.Common_OpenAIAPI import generate_meeting_title
+from src.utils.config import ConfigManager, config_manager
+from .title_generator import TitleGeneratorFactory, TitleGeneratorFactoryError, TitleGenerationError
 
 class MeetingTitleService:
     def __init__(self):
@@ -12,6 +13,7 @@ class MeetingTitleService:
         FileUtilsのインスタンスを作成
         """
         self.file_utils = FileUtils()
+        self.config_manager = config_manager
 
     def _read_transcript_file(self, transcript_file_path: str) -> str:
         """
@@ -74,10 +76,9 @@ class MeetingTitleService:
         """
         print(f"Saving title to: {title_file_path}")
         try:
-            # タイトルをJSON形式で保存
-            title_data = {"title": title}
+            # タイトルをプレーンテキストで保存
             with open(title_file_path, 'w', encoding='utf-8') as f:
-                json.dump(title_data, f, ensure_ascii=False, indent=2)
+                f.write(title)
             print(f"Title saved successfully to: {title_file_path}")
         except Exception as e:
             error_msg = f"Error saving title file: {str(e)}"
@@ -93,24 +94,49 @@ class MeetingTitleService:
             str: 生成されたタイトルファイルのパス
         """
         try:
-            # 1. ファイル読み込み
+            # 1. 設定から書き起こし方式を取得
+            config = self.config_manager.get_config()
+            print(f"[DEBUG] process_transcript_and_generate_title - config id: {id(config)}")
+            print(f"[DEBUG] process_transcript_and_generate_title - transcription.method: {config.transcription.method}")
+            transcription_method = config.transcription.method
+            print(f"Using transcription method: {transcription_method}")
+            
+            # 2. タイトルジェネレーターを作成
+            title_generator = TitleGeneratorFactory.create_generator(transcription_method)
+            
+            # 3. ファイル読み込み
             transcript_text = self._read_transcript_file(transcript_file_path)
             
-            # 2. タイトル生成
+            # 4. タイトル生成
             print("Generating meeting title...")
-            title = generate_meeting_title(transcript_text)
+            title = title_generator.generate_title(transcript_text)
+            
+            # JSONとして解析できない場合は、テキストとして扱う
+            try:
+                title_json = json.loads(title)
+                title = title_json.get("title", title)
+            except json.JSONDecodeError:
+                print("JSONパースに失敗。テキストベースの抽出を試みます")
+            
             print(f"Generated title: {title}")
             
-            # 3. タイトルファイル生成
+            # 5. タイトルファイル生成
             timestamp = self._extract_timestamp(transcript_file_path)
             title_file_path = self._generate_title_file_path(timestamp)
             
-            # 4. タイトル保存
+            # タイトル保存前にディレクトリを作成
+            os.makedirs(os.path.dirname(title_file_path), exist_ok=True)
+            
+            # 6. タイトル保存
             self._save_title(title_file_path, title)
             
             return title_file_path
             
-        except Exception as e:
+        except (TitleGeneratorFactoryError, TitleGenerationError) as e:
             error_msg = f"Error in title generation process: {str(e)}"
+            print(error_msg)
+            raise
+        except Exception as e:
+            error_msg = f"Unexpected error in title generation process: {str(e)}"
             print(error_msg)
             raise 
