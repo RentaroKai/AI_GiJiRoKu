@@ -1,21 +1,16 @@
 import openai
 import os
 import base64
-#import requests
 from typing import List, Dict, Any
-#from pydantic import BaseModel
-#import time
 import logging
 from pathlib import Path
 
-# ロガーの設定
 logger = logging.getLogger(__name__)
 
 # 定数定義
 DEFAULT_CHAT_MODEL = "gpt-4o"
 DEFAULT_ST_MODEL = "gpt-4o"
 DEFAULT_STTITLE_MODEL = "gpt-4o-mini"
-#DEFAULT_VISION_MODEL = "gpt-4o"
 DEFAULT_AUDIO_MODEL = "whisper-1"
 DEFAULT_4oAUDIO_MODEL = "gpt-4o-audio-preview"
 DEFAULT_TEMPERATURE = 0.1
@@ -153,14 +148,12 @@ def generate_audio_chat_response(audio_file_path, system_prompt, temperature=DEF
 def generate_structured_chat_response(system_prompt: str, user_message_content: str, json_schema: dict,
                                    temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_ST_MODEL):
     """構造化されたJSONレスポンスを生成する関数
-
     Args:
         system_prompt (str): システムプロンプト
         user_message_content (str): ユーザーメッセージ
         json_schema (dict): 期待するJSONスキーマ
         temperature (float): 生成時の温度パラメータ
-        model_name (str): 使用するモデル名（デフォルトはo3-mini）
-
+        model_name (str): 使用するモデル名
     Returns:
         dict: スキーマに従った構造化されたレスポンス
     """
@@ -258,10 +251,8 @@ def generate_meeting_title(transcript_text: str, temperature=DEFAULT_TEMPERATURE
     except Exception as e:
         logger.error(f"Failed to parse meeting title response: {str(e)}")
         raise e
-
 # system_prompt = """あなたは会議の書き起こしを行う専門家です。
 # 音声ファイルに忠実な書き起こしテキストを作成してください。"""
-
 # response = generate_structured_chat_response(
 #     system_prompt=system_prompt,
 #     user_message_content="会議の内容",
