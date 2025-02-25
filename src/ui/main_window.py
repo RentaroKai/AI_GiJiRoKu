@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox, filedialog
+from tkinter import ttk, messagebox, filedialog, scrolledtext
 import logging
 import pathlib
 import threading
@@ -11,6 +11,7 @@ from ..services.transcription import TranscriptionService, TranscriptionError
 from ..services.csv_converter import CSVConverterService, CSVConversionError
 from ..services.file_organizer import FileOrganizer
 from ..utils.config import config_manager, ConfigError
+from ..utils.prompt_manager import prompt_manager
 from ..services.processor import process_audio_file
 import json
 
@@ -250,7 +251,8 @@ class SettingsDialog(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
         self.title("設定")
-        self.resizable(False, False)
+        self.resizable(True, True)  # リサイズ可能に変更
+        self.geometry("600x700")    # 高さを700pxに増やす
         
         # ウィンドウを親の上に表示
         self.transient(parent)
@@ -266,23 +268,43 @@ class SettingsDialog(tk.Toplevel):
         self.summarization_model = self.config.get("summarization", {}).get("model", "openai")
         self.output_dir = self.config.get("output", {}).get("default_dir", os.path.expanduser("~/Documents/議事録"))
 
+        # プロンプトの読み込み
+        self.minutes_prompt = prompt_manager.get_prompt("minutes")
+        self.default_minutes_prompt = prompt_manager.get_default_prompt("minutes")
+
         self._create_widgets()
         self._layout_widgets()
 
     def _create_widgets(self):
         """設定ダイアログのウィジェット作成"""
+        # タブコントロールの作成
+        self.tab_control = ttk.Notebook(self)
+        
+        # タブのスタイル設定
+        style = ttk.Style()
+        style.configure('TNotebook.Tab', padding=[20, 5])  # 左右に20px、上下に5pxのパディングを設定
+        
+        # 基本設定タブ
+        self.basic_tab = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.basic_tab, text="基本設定")
+        
+        # プロンプト設定タブ
+        self.prompt_tab = ttk.Frame(self.tab_control)
+        self.tab_control.add(self.prompt_tab, text="議事録の内容を指定")
+        
+        # === 基本設定タブのウィジェット ===
         # OpenAI API Key設定
         self.api_key_var = tk.StringVar(value=self.openai_api_key)
-        self.api_key_frame = ttk.LabelFrame(self, text="OpenAI API Key", padding=5)
+        self.api_key_frame = ttk.LabelFrame(self.basic_tab, text="OpenAI API Key", padding=5)
         self.api_key_entry = ttk.Entry(self.api_key_frame, textvariable=self.api_key_var, show="*")
         
         # Gemini API Key設定
         self.gemini_api_key_var = tk.StringVar(value=self.gemini_api_key)
-        self.gemini_api_key_frame = ttk.LabelFrame(self, text="Gemini API Key", padding=5)
+        self.gemini_api_key_frame = ttk.LabelFrame(self.basic_tab, text="Gemini API Key", padding=5)
         self.gemini_api_key_entry = ttk.Entry(self.gemini_api_key_frame, textvariable=self.gemini_api_key_var, show="*")
         
         # 書き起こし方式設定
-        self.transcription_frame = ttk.LabelFrame(self, text="書き起こし方式", padding=5)
+        self.transcription_frame = ttk.LabelFrame(self.basic_tab, text="書き起こし方式", padding=5)
         self.transcription_var = tk.StringVar(value=self.transcription_method)
         self.transcription_whisper = ttk.Radiobutton(
             self.transcription_frame,
@@ -304,12 +326,12 @@ class SettingsDialog(tk.Toplevel):
         )
         
         # 分割時間設定
-        self.segment_length_frame = ttk.LabelFrame(self, text="分割処理用の秒数", padding=5)
+        self.segment_length_frame = ttk.LabelFrame(self.basic_tab, text="分割処理用の秒数", padding=5)
         self.segment_length_var = tk.StringVar(value=str(self.segment_length))
         self.segment_length_entry = ttk.Entry(self.segment_length_frame, textvariable=self.segment_length_var)
 
         # 議事録生成モデル設定
-        self.summarization_frame = ttk.LabelFrame(self, text="議事録生成モデル", padding=5)
+        self.summarization_frame = ttk.LabelFrame(self.basic_tab, text="議事録生成モデル", padding=5)
         self.summarization_var = tk.StringVar(value=self.summarization_model)
         self.summarization_openai = ttk.Radiobutton(
             self.summarization_frame,
@@ -326,7 +348,7 @@ class SettingsDialog(tk.Toplevel):
 
         # 出力ディレクトリ設定
         self.output_dir_var = tk.StringVar(value=self.output_dir)
-        self.output_dir_frame = ttk.LabelFrame(self, text="出力ディレクトリ", padding=5)
+        self.output_dir_frame = ttk.LabelFrame(self.basic_tab, text="出力ディレクトリ", padding=5)
         self.output_dir_entry = ttk.Entry(self.output_dir_frame, textvariable=self.output_dir_var)
         self.output_dir_button = ttk.Button(
             self.output_dir_frame,
@@ -334,11 +356,33 @@ class SettingsDialog(tk.Toplevel):
             command=self._browse_output_dir
         )
 
+        # === プロンプト設定タブのウィジェット ===
+        # 議事録プロンプト設定
+        self.minutes_prompt_frame = ttk.LabelFrame(self.prompt_tab, text="議事録生成プロンプト", padding=5)
+        self.minutes_prompt_text = scrolledtext.ScrolledText(
+            self.minutes_prompt_frame, 
+            wrap=tk.WORD,
+            width=60,
+            height=20
+        )
+        self.minutes_prompt_text.insert(tk.END, self.minutes_prompt)
+        
+        # プロンプトリセットボタン
+        self.reset_prompt_button = ttk.Button(
+            self.minutes_prompt_frame,
+            text="デフォルトに戻す",
+            command=self._reset_minutes_prompt
+        )
+
         # 保存ボタン
         self.save_button = ttk.Button(self, text="保存", command=self._save_settings)
 
     def _layout_widgets(self):
         """ウィジェットのレイアウト"""
+        # タブコントロールの配置
+        self.tab_control.pack(expand=1, fill="both", padx=5, pady=5)
+        
+        # === 基本設定タブのレイアウト ===
         # OpenAI API Key
         self.api_key_frame.pack(fill="x", padx=5, pady=5)
         self.api_key_entry.pack(fill="x", padx=5, pady=5)
@@ -367,8 +411,20 @@ class SettingsDialog(tk.Toplevel):
         self.output_dir_entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
         self.output_dir_button.pack(side="left", padx=5)
         
+        # === プロンプト設定タブのレイアウト ===
+        # 議事録プロンプト
+        self.minutes_prompt_frame.pack(fill="both", expand=True, padx=5, pady=5)
+        self.minutes_prompt_text.pack(fill="both", expand=True, padx=5, pady=5)
+        self.reset_prompt_button.pack(anchor="e", padx=5, pady=5)
+        
         # 保存ボタン
         self.save_button.pack(pady=10)
+
+    def _reset_minutes_prompt(self):
+        """議事録プロンプトをデフォルトに戻す"""
+        if messagebox.askyesno("確認", "議事録プロンプトをデフォルトに戻しますか？"):
+            self.minutes_prompt_text.delete(1.0, tk.END)
+            self.minutes_prompt_text.insert(tk.END, self.default_minutes_prompt)
 
     def _browse_output_dir(self):
         """出力ディレクトリを選択するダイアログを表示"""
@@ -387,10 +443,15 @@ class SettingsDialog(tk.Toplevel):
     def _save_settings(self):
         """設定の保存"""
         try:
-            # 分割時間の検証
+            # 設定ファイルの読み込み
             try:
-                with open("config/settings.json", "r", encoding="utf-8") as f:
-                    config = json.load(f)
+                # prompt_managerが使用するパスと同じパスを使用
+                config_file = prompt_manager.config_file
+                if config_file.exists():
+                    with open(config_file, "r", encoding="utf-8") as f:
+                        config = json.load(f)
+                else:
+                    config = {}
             except (FileNotFoundError, json.JSONDecodeError):
                 config = {}
 
@@ -408,15 +469,18 @@ class SettingsDialog(tk.Toplevel):
                 "summarization": {
                     "model": self.summarization_var.get()
                 },
-
             })
             
             # 設定ディレクトリが存在しない場合は作成
-            os.makedirs("config", exist_ok=True)
+            config_file.parent.mkdir(parents=True, exist_ok=True)
             
             # 設定を保存
-            with open("config/settings.json", "w", encoding="utf-8") as f:
+            with open(config_file, "w", encoding="utf-8") as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
+            
+            # プロンプトの保存
+            minutes_prompt_text = self.minutes_prompt_text.get(1.0, tk.END).strip()
+            prompt_manager.save_custom_prompt("minutes", minutes_prompt_text)
             
             self.destroy()
             messagebox.showinfo("成功", "設定を保存しました")
@@ -427,7 +491,11 @@ class SettingsDialog(tk.Toplevel):
     def _load_config(self):
         """設定の読み込み"""
         try:
-            with open("config/settings.json", "r", encoding="utf-8") as f:
-                return json.load(f)
+            # prompt_managerが使用するパスと同じパスを使用
+            config_file = prompt_manager.config_file
+            if config_file.exists():
+                with open(config_file, "r", encoding="utf-8") as f:
+                    return json.load(f)
+            return {}
         except (FileNotFoundError, json.JSONDecodeError):
             return {} 

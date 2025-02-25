@@ -8,6 +8,7 @@ from pathlib import Path
 
 from ..utils.summarizer_factory import SummarizerFactory, SummarizerFactoryError
 from ..utils.Common_OpenAIAPI import generate_chat_response
+from ..utils.prompt_manager import prompt_manager
 
 logger = logging.getLogger(__name__)
 
@@ -35,7 +36,7 @@ class MinutesService:
 
         Args:
             text (Union[str, Path]): 書き起こしテキストまたはテキストファイルのパス
-            prompt_path (str): プロンプトファイルのパス
+            prompt_path (str): プロンプトファイルのパス（互換性のために残す）
 
         Returns:
             Dict[str, Any]: 生成結果（ファイルパスとメタデータを含む）
@@ -67,34 +68,13 @@ class MinutesService:
                 input_text = str(text)
                 timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
 
-            # プロンプトの読み込み
-            if getattr(sys, 'frozen', False):
-                # PyInstallerで実行している場合
-                base_path = pathlib.Path(sys._MEIPASS)
-                prompt_path = base_path / "src/prompts/minutes.txt"
-                logger.info(f"PyInstaller実行モード - プロンプトパス: {prompt_path}")
-            else:
-                # 通常の実行の場合
-                prompt_path = pathlib.Path("src/prompts/minutes.txt")
-                logger.info(f"通常実行モード - プロンプトパス: {prompt_path}")
-
-            if not prompt_path.exists():
-                logger.error(f"議事録プロンプトファイルが見つかりません: {prompt_path}")
-                logger.error(f"現在のディレクトリ: {os.getcwd()}")
-                logger.error(f"ディレクトリ内容: {list(prompt_path.parent.glob('**/*'))}")
-                raise MinutesError(f"議事録プロンプトファイルが見つかりません: {prompt_path}")
-
-            try:
-                logger.info(f"プロンプトファイルを読み込み中: {prompt_path}")
-                with open(prompt_path, 'r', encoding='utf-8') as f:
-                    prompt = f.read().strip()
-            except UnicodeDecodeError:
-                # UTF-8で失敗した場合、CP932で試行
-                with open(prompt_path, 'r', encoding='cp932') as f:
-                    prompt = f.read().strip()
-            except Exception as e:
-                logger.error(f"プロンプトファイルの読み込み中にエラー: {str(e)}")
-                raise MinutesError(f"プロンプトファイルの読み込みに失敗しました: {str(e)}")
+            # プロンプトの読み込み - prompt_managerを使用
+            logger.info("議事録プロンプトを取得します")
+            prompt = prompt_manager.get_prompt("minutes")
+            if not prompt:
+                logger.error("議事録プロンプトの取得に失敗しました")
+                raise MinutesError("議事録プロンプトの取得に失敗しました")
+            logger.info(f"議事録プロンプトを取得しました（{len(prompt)}文字）")
 
             # Summarizerの生成
             summarizer = SummarizerFactory.create_summarizer(self.config_path)
@@ -144,25 +124,13 @@ class MinutesService:
                 logger.error("議事録データが空です")
                 raise MinutesError("議事録データが空です")
             
-            # プロンプトの読み込み
-            if getattr(sys, 'frozen', False):
-                # PyInstallerで実行している場合
-                base_path = pathlib.Path(sys._MEIPASS)
-                prompt_path = base_path / "src/prompts/reflection.txt"
-            else:
-                # 通常の実行の場合
-                prompt_path = pathlib.Path("src/prompts/reflection.txt")
-            
-            if not prompt_path.exists():
-                logger.error(f"反省点プロンプトファイルが見つかりません: {prompt_path}")
-                raise MinutesError(f"反省点プロンプトファイルが見つかりません: {prompt_path}")
-            
-            try:
-                with open(prompt_path, "r", encoding="utf-8") as f:
-                    prompt_template = f.read().strip()
-            except Exception as e:
-                logger.error(f"反省点プロンプトファイルの読み込みに失敗: {str(e)}")
-                raise MinutesError(f"反省点プロンプトファイルの読み込みに失敗: {str(e)}")
+            # プロンプトの読み込み - prompt_managerを使用
+            logger.info("反省点プロンプトを取得します")
+            prompt_template = prompt_manager.get_prompt("reflection")
+            if not prompt_template:
+                logger.error("反省点プロンプトの取得に失敗しました")
+                raise MinutesError("反省点プロンプトの取得に失敗しました")
+            logger.info(f"反省点プロンプトを取得しました（{len(prompt_template)}文字）")
             
             # GPT-4による分析
             reflection_result = generate_chat_response(
