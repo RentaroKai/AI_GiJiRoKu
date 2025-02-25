@@ -51,7 +51,7 @@ class MainWindow:
         self.mode_frame = ttk.LabelFrame(self.root, text="処理モード", padding=10)
         self.transcribe_var = tk.BooleanVar(value=True)
         self.minutes_var = tk.BooleanVar(value=True)
-        self.reflection_var = tk.BooleanVar(value=False)
+        self.reflection_var = tk.BooleanVar(value=False)  # Hidden but kept for compatibility
         
         self.transcribe_check = ttk.Checkbutton(
             self.mode_frame, 
@@ -63,11 +63,6 @@ class MainWindow:
             self.mode_frame,
             text="議事録",
             variable=self.minutes_var
-        )
-        self.reflection_check = ttk.Checkbutton(
-            self.mode_frame,
-            text="会議の反省点",
-            variable=self.reflection_var
         )
         
         # ボタン部分
@@ -117,7 +112,6 @@ class MainWindow:
         self.mode_frame.pack(fill=tk.X, padx=10, pady=5)
         self.transcribe_check.pack(side=tk.LEFT, padx=5)
         self.minutes_check.pack(side=tk.LEFT, padx=5)
-        self.reflection_check.pack(side=tk.LEFT, padx=5)
         
         # ボタン部分
         button_frame = ttk.Frame(self.root)
@@ -190,7 +184,7 @@ class MainWindow:
             modes = {
                 "transcribe": self.transcribe_var.get(),
                 "minutes": self.minutes_var.get(),
-                "reflection": self.reflection_var.get()
+                "reflection": False  # Always set to False to disable the reflection feature
             }
             
             # 処理の実行
@@ -219,8 +213,7 @@ class MainWindow:
                 f"処理が完了しました。\n\n"
                 f"書き起こし: {results.get('transcription', {}).get('formatted_file', '未実行')}\n"
                 f"CSV: {results.get('csv', '未実行')}\n"
-                f"議事録: {results.get('minutes', '未実行')}\n"
-                f"反省点: {results.get('reflection', '未実行')}"
+                f"議事録: {results.get('minutes', '未実行')}"
             ))
             
         except (AudioProcessingError, TranscriptionError, CSVConversionError, ConfigError) as e:

@@ -8,8 +8,6 @@ import atexit
 import json
 from pathlib import Path
 from datetime import datetime
-#from modules.audio_splitter import AudioSplitter
-#from modules.transcriber import GeminiTranscriber
 from modules.audio_processor import AudioProcessor
 
 
