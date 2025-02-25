@@ -7,7 +7,7 @@ from typing import Dict, Any, Literal
 from ..utils.Common_OpenAIAPI import generate_transcribe_from_audio, generate_structured_chat_response, generate_audio_chat_response, APIError, MEETING_TRANSCRIPT_SCHEMA
 from ..utils.gemini_api import GeminiAPI
 import sys
-from modules.audio_splitter import AudioSplitter
+from ..modules.audio_splitter import AudioSplitter
 from pathlib import Path
 import re
 
