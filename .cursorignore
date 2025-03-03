@@ -59,7 +59,7 @@ test.mkv
 tests/
 rokuon_converted.mp3
 test_converted.mp3
-config
+
 sample
 check_env.py
 src/services/_audio.py
@@ -70,3 +70,11 @@ test_*
 
 test.mp3
 要件定義書_ファイル分割.md
+仕様.md
+sample.py
+会議タイトルを分岐させる仕様.md
+会議タイトルを分岐させる目標.md
+gijiroku.jpg
+meeting古い.py
+
+画像
