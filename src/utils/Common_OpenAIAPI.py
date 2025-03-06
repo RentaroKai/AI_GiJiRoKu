@@ -8,7 +8,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # 定数定義
-DEFAULT_CHAT_MODEL = "gpt-4o"
+DEFAULT_CHAT_MODEL = "o3-mini-2025-01-31"
 DEFAULT_ST_MODEL = "gpt-4o"
 DEFAULT_STTITLE_MODEL = "gpt-4o-mini"
 DEFAULT_AUDIO_MODEL = "whisper-1"
@@ -45,27 +45,54 @@ def get_client():
     return openai.OpenAI()
 
 def generate_chat_response(system_prompt, user_message_content, max_tokens=DEFAULT_MAX_TOKENS, temperature=DEFAULT_TEMPERATURE, model_name=DEFAULT_CHAT_MODEL):
-    """チャットレスポンスを生成（リトライなし）"""
+    """チャットレスポンスを生成（リトライなし）
+    
+    もしもモデル名に"o3-mini"が含まれている場合は、o3mini向けのパラメータ形式でリクエストします。
+    """
     client = get_client()
     try:
-        params = {
-            "model": model_name,
-            "temperature": temperature,
-            "messages": []
-        }
+        # o3miniの場合（例: "o3-mini-2025-01-31"など）
+        if "o3-mini" in model_name.lower():
+            params = {
+                "model": model_name,
+                "messages": [],
+                "response_format": {"type": "text"},
+                "reasoning_effort": "high"
+            }
+            if system_prompt:
+                params["messages"].append({
+                    "role": "system",
+                    "content": [
+                        {"type": "text", "text": system_prompt}
+                    ]
+                })
+            params["messages"].append({
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_message_content}
+                ]
+            })
+            logger.info(f"o3mini チャットリクエストを送信: モデル={model_name}")
+            response = client.chat.completions.create(**params)
+            logger.info("o3mini チャットレスポンスを受信しました")
+            return response.choices[0].message.content
+        else:
+            # 従来のモデルの処理
+            params = {
+                "model": model_name,
+                "temperature": temperature,
+                "messages": []
+            }
+            if system_prompt:
+                params["messages"].append({"role": "system", "content": system_prompt})
+            params["messages"].append({"role": "user", "content": user_message_content})
+            if isinstance(max_tokens, int) and max_tokens > 0:
+                params["max_tokens"] = max_tokens
 
-        if system_prompt:
-            params["messages"].append({"role": "system", "content": system_prompt})
-
-        params["messages"].append({"role": "user", "content": user_message_content})
-
-        if isinstance(max_tokens, int) and max_tokens > 0:
-            params["max_tokens"] = max_tokens
-
-        logger.info(f"チャットリクエストを送信: モデル={model_name}")
-        response = client.chat.completions.create(**params)
-        logger.info("チャットレスポンスを受信しました")
-        return response.choices[0].message.content
+            logger.info(f"チャットリクエストを送信: モデル={model_name}")
+            response = client.chat.completions.create(**params)
+            logger.info("チャットレスポンスを受信しました")
+            return response.choices[0].message.content
 
     except Exception as e:
         logger.error(f"チャットレスポンス生成中にエラーが発生しました: {str(e)}")
