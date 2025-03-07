@@ -1,6 +1,7 @@
 import subprocess
 import os
 import logging
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -12,6 +13,19 @@ class FormatConversionError(Exception):
 AUDIO_FORMATS = ['m4a', 'aac', 'flac', 'ogg']
 VIDEO_FORMATS = ['mkv', 'mp4','avi', 'mov', 'flv']
 
+def get_ffmpeg_executable():
+    """
+    FFmpegの実行ファイルの絶対パスを取得する関数。
+    PyInstallerでexe化されている場合は sys._MEIPASS 内から、通常実行の場合はプロジェクトディレクトリからの相対パスを使用する。
+    """
+    if getattr(sys, 'frozen', False):
+        # PyInstallerでバンドルされている場合、付属ファイルはsys._MEIPASSに配置される
+        ffmpeg_path = os.path.join(sys._MEIPASS, "resources", "ffmpeg", "ffmpeg.exe")
+    else:
+        # 通常実行の場合、現在のファイルから計算
+        base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        ffmpeg_path = os.path.join(base_dir, "resources", "ffmpeg", "ffmpeg.exe")
+    return ffmpeg_path
 
 def is_conversion_needed(file_path):
     """
@@ -25,7 +39,6 @@ def is_conversion_needed(file_path):
     logger.info(f"ファイル {file_path} は変換不要です（形式: {ext}）")
     return False
 
-
 def get_output_filename(input_file, target_ext='mp3'):
     """
     入力ファイルパスから変換後のファイル名を生成する関数
@@ -34,7 +47,6 @@ def get_output_filename(input_file, target_ext='mp3'):
     output_file = f"{base}_converted.{target_ext}"
     logger.debug(f"変換後のファイル名を生成: {output_file}")
     return output_file
-
 
 def convert_file(input_file):
     """
@@ -56,13 +68,16 @@ def convert_file(input_file):
     _, ext = os.path.splitext(input_file)
     ext = ext.lower().lstrip('.')
 
+    # FFmpegの実行ファイルの絶対パスを取得
+    ffmpeg_exec = get_ffmpeg_executable()
+
     # FFmpegのコマンド作成
     if ext in AUDIO_FORMATS:
         # オーディオの場合の変換コマンド
-        cmd = f'ffmpeg -y -i "{input_file}" -map 0:a:0 -acodec libmp3lame -q:a 2 "{output_file}"'
+        cmd = f'"{ffmpeg_exec}" -y -i "{input_file}" -map 0:a:0 -acodec libmp3lame -q:a 2 "{output_file}"'
     elif ext in VIDEO_FORMATS:
         # 動画の場合の変換コマンド（動画部分を除外）
-        cmd = f'ffmpeg -y -i "{input_file}" -vn -map 0:a:0 -acodec libmp3lame -q:a 2 "{output_file}"'
+        cmd = f'"{ffmpeg_exec}" -y -i "{input_file}" -vn -map 0:a:0 -acodec libmp3lame -q:a 2 "{output_file}"'
     else:
         # その他の形式の場合はそのまま返す（通常はここに到達しない）
         logger.warning(f"未知の形式のため変換をスキップ: {ext}")
@@ -102,7 +117,6 @@ def convert_file(input_file):
     logger.info(f"変換処理が完了しました: {output_file}")
     return output_file
 
-
 def cleanup_file(file_path):
     """
     変換後の一時ファイルを削除する関数
@@ -118,7 +132,6 @@ def cleanup_file(file_path):
             raise FormatConversionError(error_msg)
     else:
         logger.warning(f"{file_path} は存在しません。")
-
 
 if __name__ == '__main__':
     # テスト実行用のコード
