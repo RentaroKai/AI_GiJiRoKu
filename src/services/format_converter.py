@@ -2,6 +2,7 @@ import subprocess
 import os
 import logging
 import sys
+from src.utils.paths import get_ffmpeg_path
 
 logger = logging.getLogger(__name__)
 
@@ -69,7 +70,7 @@ def convert_file(input_file):
     ext = ext.lower().lstrip('.')
 
     # FFmpegの実行ファイルの絶対パスを取得
-    ffmpeg_exec = get_ffmpeg_executable()
+    ffmpeg_exec = get_ffmpeg_path()
 
     # FFmpegのコマンド作成
     if ext in AUDIO_FORMATS:

@@ -5,6 +5,7 @@ a = Analysis(
     pathex=[],
     binaries=[
         ('resources/ffmpeg/ffmpeg.exe', 'resources/ffmpeg'),  # FFmpegを正しいディレクトリに配置
+        ('resources/ffmpeg/ffprobe.exe', 'resources/ffmpeg'),  # ffprobe を追加
     ],
     datas=[
         ('src/ui', 'src/ui'),
@@ -20,7 +21,7 @@ a = Analysis(
     ],
     hookspath=[],
     hooksconfig={},
-    runtime_hooks=[],
+    runtime_hooks=[ 'hooks/ffmpeg_hook.py' ],
     excludes=[
         'numpy',
         'pandas',

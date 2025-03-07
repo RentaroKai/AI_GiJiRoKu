@@ -1,3 +1,13 @@
+"""
+Changes:
+- Added ffmpeg path configuration for PyInstaller compatibility
+- Added logging configuration for debugging ffmpeg path issues
+- Added explicit ffmpeg path setting for pydub
+- ffmpeg & ffprobe のバイナリ検出用のパス設定処理を追加
+- PATH 環境変数に ffmpeg フォルダを追加して、ffprobe.exe も正しく実行できるように修正
+Date: [current_date]
+"""
+
 import os
 import sys
 import tkinter as tk
@@ -9,10 +19,52 @@ import json
 from pathlib import Path
 from datetime import datetime
 from src.modules.audio_processor import AudioProcessor
-
+from pydub import AudioSegment
+from src.utils.paths import get_ffmpeg_path
 
 # ロガーの初期化
 logger = logging.getLogger(__name__)
+
+# ログ出力を設定します（デバッグ用）
+logging.basicConfig(level=logging.DEBUG)
+
+def get_base_path():
+    """
+    PyInstaller の場合は sys._MEIPASS、通常実行の場合は実行ディレクトリを返す。
+    """
+    try:
+        base_path = sys._MEIPASS
+        logging.debug("EXE実行中: sys._MEIPASS = %s", base_path)
+    except AttributeError:
+        base_path = os.path.abspath(".")
+        logging.debug("通常実行中: base_path = %s", base_path)
+    return base_path
+
+def get_ffmpeg_path():
+    """
+    バンドルした ffmpeg.exe のフルパスを取得します。
+    """
+    base_path = get_base_path()
+    ffmpeg_path = os.path.join(base_path, "resources", "ffmpeg", "ffmpeg.exe")
+    if not os.path.exists(ffmpeg_path):
+        logging.error("ffmpeg.exe が見つかりません: %s", ffmpeg_path)
+    else:
+        logging.debug("ffmpeg.exe のパス: %s", ffmpeg_path)
+    return ffmpeg_path
+
+def add_ffmpeg_bin_to_path():
+    """
+    バンドルしたフォルダ（ffmpeg, ffprobe 含む）を PATH 環境変数に追加します。
+    """
+    base_path = get_base_path()
+    bin_path = os.path.join(base_path, "resources", "ffmpeg")
+    os.environ["PATH"] = bin_path + os.pathsep + os.environ.get("PATH", "")
+    logging.debug("Updated PATH: %s", os.environ["PATH"])
+
+# pydubが利用するffmpegのパスを明示的に設定
+AudioSegment.converter = get_ffmpeg_path()
+# PATH を更新して ffprobe.exe も検索可能に
+add_ffmpeg_bin_to_path()
 
 # アプリケーションのベースディレクトリを設定
 if getattr(sys, 'frozen', False):
