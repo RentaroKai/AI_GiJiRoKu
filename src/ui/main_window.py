@@ -265,6 +265,7 @@ class SettingsDialog(tk.Toplevel):
         self.gemini_api_key = self.config.get("gemini_api_key", "")
         self.transcription_method = self.config.get("transcription", {}).get("method", "gpt4_audio")
         self.segment_length = self.config.get("transcription", {}).get("segment_length_seconds", 300)
+        self.enable_speaker_remapping = self.config.get("transcription", {}).get("enable_speaker_remapping", True)
         self.summarization_model = self.config.get("summarization", {}).get("model", "openai")
         self.output_dir = self.config.get("output", {}).get("default_dir", os.path.expanduser("~/Documents/議事録"))
 
@@ -323,6 +324,19 @@ class SettingsDialog(tk.Toplevel):
             text="Gemini方式",
             value="gemini",
             variable=self.transcription_var
+        )
+        
+        # 話者置換処理オプション
+        self.enable_speaker_remapping_var = tk.BooleanVar(value=self.enable_speaker_remapping)
+        self.enable_speaker_remapping_check = ttk.Checkbutton(
+            self.transcription_frame,
+            text="話者置換処理を有効にする",
+            variable=self.enable_speaker_remapping_var
+        )
+        self.speaker_remapping_label = ttk.Label(
+            self.transcription_frame,
+            text="AIを使用して異なるセグメント間の同じ話者を識別し、話者名を統一します。\n無効にすると処理時間が短縮されますが、話者名が統一されません。",
+            wraplength=350
         )
         
         # 分割時間設定
@@ -396,6 +410,9 @@ class SettingsDialog(tk.Toplevel):
         self.transcription_whisper.pack(anchor="w", padx=5, pady=2)
         self.transcription_gpt4audio.pack(anchor="w", padx=5, pady=2)
         self.transcription_gemini.pack(anchor="w", padx=5, pady=2)
+        ttk.Separator(self.transcription_frame, orient="horizontal").pack(fill="x", padx=5, pady=5)
+        self.enable_speaker_remapping_check.pack(anchor="w", padx=5, pady=2)
+        self.speaker_remapping_label.pack(fill="x", padx=5, pady=2)
         
         # 分割時間
         self.segment_length_frame.pack(fill="x", padx=5, pady=5)
@@ -464,7 +481,8 @@ class SettingsDialog(tk.Toplevel):
                 },                
                 "transcription": {
                     "method": self.transcription_var.get(),
-                    "segment_length_seconds": int(self.segment_length_var.get())
+                    "segment_length_seconds": int(self.segment_length_var.get()),
+                    "enable_speaker_remapping": self.enable_speaker_remapping_var.get()
                 },
                 "summarization": {
                     "model": self.summarization_var.get()

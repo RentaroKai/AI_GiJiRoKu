@@ -8,6 +8,7 @@ from .minutes import MinutesService
 from .format_converter import convert_file, cleanup_file, FormatConversionError
 from .meeting_title_service import MeetingTitleService
 from .speaker_remapper import create_speaker_remapper
+from src.utils.config import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -77,17 +78,24 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 
                 # 追加: スピーカーリマップ処理
                 try:
-                    logger.info("スピーカーリマップ処理を開始")
-                    speaker_remapper = create_speaker_remapper()
-                    transcript_file_path = transcription_result.get("formatted_file")
-                    if transcript_file_path:
-                        remapped_file_path = speaker_remapper.process_transcript(transcript_file_path)
-                        # リマップ後のファイルを以降の処理で使用するように設定
-                        transcription_result["formatted_file"] = remapped_file_path
-                        results["speaker_remap"] = {"file_path": remapped_file_path}
-                        logger.info(f"スピーカーリマップ処理完了: {remapped_file_path}")
+                    # 話者置換処理の設定を取得
+                    enable_speaker_remapping = config_manager.get_config().transcription.enable_speaker_remapping
+                    
+                    if enable_speaker_remapping:
+                        logger.info("スピーカーリマップ処理を開始")
+                        speaker_remapper = create_speaker_remapper()
+                        transcript_file_path = transcription_result.get("formatted_file")
+                        if transcript_file_path:
+                            remapped_file_path = speaker_remapper.process_transcript(transcript_file_path)
+                            # リマップ後のファイルを以降の処理で使用するように設定
+                            transcription_result["formatted_file"] = remapped_file_path
+                            results["speaker_remap"] = {"file_path": remapped_file_path}
+                            logger.info(f"スピーカーリマップ処理完了: {remapped_file_path}")
+                        else:
+                            logger.warning("書き起こしファイルのパスが見つかりません")
                     else:
-                        logger.warning("書き起こしファイルのパスが見つかりません")
+                        logger.info("話者置換処理はオプションで無効化されているためスキップします")
+                        results["speaker_remap"] = {"status": "skipped", "reason": "disabled_by_config"}
                 except Exception as e:
                     logger.error(f"スピーカーリマップ処理中にエラーが発生: {str(e)}")
                     results["speaker_remap"] = {"error": str(e)}

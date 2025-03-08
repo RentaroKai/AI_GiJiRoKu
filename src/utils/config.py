@@ -20,6 +20,7 @@ class TranscriptionConfig(BaseModel):
     """文字起こし設定モデル"""
     method: str = "gpt4_audio"
     segment_length_seconds: int = 450
+    enable_speaker_remapping: bool = True  # 話者置換処理を有効にするかどうか
 
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""
