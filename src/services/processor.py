@@ -7,6 +7,7 @@ from .csv_converter import CSVConverterService
 from .minutes import MinutesService
 from .format_converter import convert_file, cleanup_file, FormatConversionError
 from .meeting_title_service import MeetingTitleService
+from .speaker_remapper import create_speaker_remapper
 
 logger = logging.getLogger(__name__)
 
@@ -74,6 +75,23 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                     logger.error(f"会議タイトル生成中にエラーが発生: {str(e)}")
                     results["meeting_title"] = {"error": str(e)}
                 
+                # 追加: スピーカーリマップ処理
+                try:
+                    logger.info("スピーカーリマップ処理を開始")
+                    speaker_remapper = create_speaker_remapper()
+                    transcript_file_path = transcription_result.get("formatted_file")
+                    if transcript_file_path:
+                        remapped_file_path = speaker_remapper.process_transcript(transcript_file_path)
+                        # リマップ後のファイルを以降の処理で使用するように設定
+                        transcription_result["formatted_file"] = remapped_file_path
+                        results["speaker_remap"] = {"file_path": remapped_file_path}
+                        logger.info(f"スピーカーリマップ処理完了: {remapped_file_path}")
+                    else:
+                        logger.warning("書き起こしファイルのパスが見つかりません")
+                except Exception as e:
+                    logger.error(f"スピーカーリマップ処理中にエラーが発生: {str(e)}")
+                    results["speaker_remap"] = {"error": str(e)}
+                
                 # CSV変換
                 logger.info("CSV変換を開始")
                 csv_converter = CSVConverterService()
@@ -98,30 +116,34 @@ def process_audio_file(input_file: Path, modes: dict) -> dict:
                 
                 # 議事録ファイルの内容を読み込む
                 with open(results["minutes"], "r", encoding="utf-8") as f:
-                    minutes_text = f.read()
+                    minutes_content = f.read()
                 
-                reflection_text = minutes_service.generate_reflection(minutes_text)
-                
-                # 反省点をファイルに保存（タイムスタンプベースのファイル名に変更）
-                reflection_file = Path("output/minutes") / f"{transcription_result['timestamp']}_reflection.md"
-                reflection_file.write_text(reflection_text, encoding="utf-8")
-                results["reflection"] = reflection_file
-                logger.info(f"反省点を保存しました: {reflection_file}")
+                # 議事録から反省点を抽出
+                reflection_path = minutes_service.extract_reflection_points(minutes_content)
+                results["reflection"] = reflection_path
             
-            logger.info("全ての処理が完了しました")
+            # 成功結果を返す
+            results["success"] = True
             return results
             
-        finally:
-            # 既存: 一時ファイルのクリーンアップ
-            if was_compressed and audio_file.exists():
-                audio_file.unlink()
-            # 追加: 変換処理で生成した一時ファイルの削除
-            if conversion_performed and converted_file is not None and converted_file.exists():
-                try:
-                    cleanup_file(str(converted_file))
-                except FormatConversionError as e:
-                    logger.warning(f"一時ファイルの削除中にエラーが発生しました: {str(e)}")
-                
+        except Exception as e:
+            # 音声処理後のエラー
+            logger.error(f"処理中にエラーが発生: {str(e)}")
+            results["success"] = False
+            results["error"] = str(e)
+            return results
+            
     except Exception as e:
-        logger.error(f"処理中にエラーが発生しました: {str(e)}")
-        raise 
+        # 前処理中のエラー
+        logger.error(f"音声前処理中にエラーが発生: {str(e)}")
+        results["success"] = False
+        results["error"] = str(e)
+        return results
+    finally:
+        # 一時ファイルのクリーンアップ
+        if conversion_performed and converted_file and converted_file.exists():
+            try:
+                cleanup_file(str(converted_file))
+                logger.info(f"一時ファイルを削除しました: {converted_file}")
+            except Exception as e:
+                logger.warning(f"一時ファイルの削除に失敗: {str(e)}") 

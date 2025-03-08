@@ -13,7 +13,8 @@ class PromptManager:
     DEFAULT_PROMPTS = {
         "minutes": "src/prompts/minutes.txt",
         "transcription": "src/prompts/transcription.txt",
-        "reflection": "src/prompts/reflection.txt"
+        "reflection": "src/prompts/reflection.txt",
+        "speakerremap": "src/prompts/speakerremap.txt"
     }
     
     def __init__(self, config_file: str = "config/settings.json"):
