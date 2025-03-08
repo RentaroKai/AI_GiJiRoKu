@@ -139,8 +139,35 @@ def setup_default_output_dir():
 def load_config():
     """設定ファイルを読み込む"""
     try:
+        logger.info("設定ファイルを読み込みます: config/settings.json")
+        # 実行モードをログに記録
+        is_frozen = getattr(sys, 'frozen', False)
+        logger.info(f"load_config: 実行モード={'PyInstaller' if is_frozen else '通常'}")
+        
+        # 実行パスの詳細をログに記録
+        if is_frozen:
+            exe_dir = Path(sys.executable).parent
+            settings_path = exe_dir / 'config/settings.json'
+            logger.info(f"PyInstaller実行モードでの設定ファイルパス: {settings_path}")
+            
+            if settings_path.exists():
+                logger.info(f"PyInstaller実行モード: 設定ファイルが存在します")
+                with open(settings_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    # 設定内容のログ
+                    transcription_method = config.get('transcription', {}).get('method', 'gpt4_audio')
+                    logger.info(f"PyInstaller実行モードで読み込まれた文字起こし方式: {transcription_method}")
+                    return config
+            else:
+                logger.warning(f"PyInstaller実行モード: 設定ファイルが見つかりません")
+        
+        # 通常の読み込み処理
         with open('config/settings.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
+            config = json.load(f)
+            # 設定内容のログ
+            transcription_method = config.get('transcription', {}).get('method', 'gpt4_audio')
+            logger.info(f"読み込まれた文字起こし方式: {transcription_method}")
+            return config
     except Exception as e:
         logger.error(f"設定ファイルの読み込み中にエラーが発生しました: {str(e)}")
         raise
@@ -156,6 +183,8 @@ def process_audio_file(input_file, config):
         # 文字起こし方式に応じて処理を分岐
         transcription_method = config.get('transcription', {}).get('method', 'whisper_gpt4')
         logger.info(f"文字起こし方式: {transcription_method}")
+        # 設定内容の詳細をログ出力
+        logger.info(f"設定内容のダンプ: {json.dumps(config, ensure_ascii=False, indent=2)}")
         
         if transcription_method == "gemini":
             # Geminiを使用する場合はAudioProcessorを使用
@@ -168,7 +197,7 @@ def process_audio_file(input_file, config):
             )
         else:
             # 既存の処理（Whisper + GPT-4など）
-            logger.info("既存の処理方式を使用します")
+            logger.info(f"既存の処理方式を使用します (方式: {transcription_method})")
             from src.services.processor import process_audio_file
             output_file = process_audio_file(input_file, {"transcribe": True})
         
@@ -186,6 +215,13 @@ def main():
         print("ロギングの設定を開始します...")
         setup_logging()
         
+        # 実行環境の情報をログに記録
+        is_frozen = getattr(sys, 'frozen', False)
+        logger.info(f"アプリケーション開始: 実行モード={'PyInstaller' if is_frozen else '通常'}")
+        if is_frozen:
+            logger.info(f"PyInstaller実行パス: {sys._MEIPASS}")
+            logger.info(f"実行ファイルパス: {sys.executable}")
+            
         logger.info("強制的に一時ファイルのクリーンアップを実行します...")
         cleanup_temp()
         

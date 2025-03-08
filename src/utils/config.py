@@ -4,6 +4,7 @@ import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
+import sys
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,25 @@ class AppConfig(BaseModel):
 
 class ConfigManager:
     def __init__(self, config_file: str = "config/settings.json"):
+        # 実行モードの詳細なログ
+        is_frozen = getattr(sys, 'frozen', False)
+        logger.info(f"ConfigManager初期化: 実行モード={'PyInstaller' if is_frozen else '通常'}")
+        
         self.config_file = Path(config_file)
+        # 設定ファイルの絶対パスのログ
+        logger.info(f"設定ファイル絶対パス: {self.config_file.absolute()}")
+        
+        # PyInstallerモードの場合、実行ファイルディレクトリ内の設定ファイルを優先
+        if is_frozen:
+            exe_dir = Path(sys.executable).parent
+            alt_config_file = exe_dir / config_file
+            logger.info(f"PyInstaller実行モードの代替設定ファイルパス: {alt_config_file}")
+            
+            if alt_config_file.exists():
+                logger.info(f"PyInstaller実行モードで代替設定ファイルが見つかりました。こちらを使用します。")
+                self.config_file = alt_config_file
+        
+        logger.info(f"最終的に使用する設定ファイル: {self.config_file}")
         self.config_file.parent.mkdir(parents=True, exist_ok=True)
         self.config = self._load_config()
 
@@ -45,16 +64,29 @@ class ConfigManager:
         """設定ファイルの読み込み"""
         try:
             if self.config_file.exists():
+                logger.info(f"設定ファイルを読み込みます: {self.config_file}")
                 with open(self.config_file, "r", encoding="utf-8") as f:
                     config_data = json.load(f)
-                logger.info("Configuration loaded successfully")
+                logger.info("設定ファイルの読み込みに成功しました")
+                
+                # 文字起こし設定の詳細なログ
+                transcription_method = config_data.get("transcription", {}).get("method", "gpt4_audio")
+                logger.info(f"読み込まれた文字起こし方式: {transcription_method}")
+                
                 return AppConfig(**config_data)
             else:
-                logger.info("No configuration file found, using defaults")
-                return AppConfig()
+                logger.warning(f"設定ファイルが見つかりません: {self.config_file}")
+                logger.info("デフォルト設定を使用します")
+                # デフォルト設定の詳細なログ
+                default_config = AppConfig()
+                logger.info(f"デフォルト文字起こし方式: {default_config.transcription.method}")
+                return default_config
         except Exception as e:
-            logger.error(f"Error loading configuration: {str(e)}")
-            return AppConfig()
+            logger.error(f"設定ファイルの読み込み中にエラーが発生しました: {str(e)}")
+            # デフォルト設定の詳細なログ
+            default_config = AppConfig()
+            logger.info(f"エラー後のデフォルト文字起こし方式: {default_config.transcription.method}")
+            return default_config
 
     def save_config(self) -> None:
         """設定の保存"""

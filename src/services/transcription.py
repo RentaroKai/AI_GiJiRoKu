@@ -23,6 +23,22 @@ class TranscriptionService:
         self.output_dir.mkdir(parents=True, exist_ok=True)
         logger.info(f"出力ディレクトリを作成/確認: {self.output_dir}")
         
+        # 実行環境の確認
+        is_frozen = getattr(sys, 'frozen', False)
+        logger.info(f"TranscriptionService初期化: 実行モード={'PyInstaller' if is_frozen else '通常'}")
+        
+        # PyInstallerモードでの設定ファイルパスの解決
+        if is_frozen:
+            exe_dir = pathlib.Path(sys.executable).parent
+            alt_config_path = exe_dir / config_path
+            if alt_config_path.exists():
+                logger.info(f"PyInstaller実行モード: 代替設定ファイルを使用 - {alt_config_path}")
+                config_path = str(alt_config_path)
+            else:
+                logger.warning(f"PyInstaller実行モード: 代替設定ファイルが見つかりません - {alt_config_path}")
+        
+        logger.info(f"使用する設定ファイルパス: {config_path}")
+        
         # 設定の読み込み
         self.config = self._load_config(config_path)
         self.transcription_method = self.config.get("transcription", {}).get("method", "gpt4_audio")
@@ -77,18 +93,25 @@ class TranscriptionService:
     def _load_config(self, config_path: str) -> Dict[str, Any]:
         """設定ファイルから設定を読み込む"""
         try:
+            logger.info(f"設定ファイルを読み込み開始: {config_path}")
             config_file = pathlib.Path(config_path)
+            
             if not config_file.exists():
                 logger.info("設定ファイルが見つかりません。デフォルトの設定を使用します。")
-                return {"transcription": {"method": "gpt4_audio"}}
+                default_config = {"transcription": {"method": "gpt4_audio"}}
+                logger.info(f"デフォルト設定内容: {default_config}")
+                return default_config
             
             try:
+                logger.info(f"設定ファイルを読み込み中: {config_file} (サイズ: {config_file.stat().st_size} bytes)")
                 with open(config_file, "r", encoding="utf-8") as f:
                     config_text = f.read().strip()
                     # 空ファイルチェック
                     if not config_text:
                         logger.warning("設定ファイルが空です。デフォルトの設定を使用します。")
-                        return {"transcription": {"method": "gpt4_audio"}}
+                        default_config = {"transcription": {"method": "gpt4_audio"}}
+                        logger.info(f"空ファイル時のデフォルト設定内容: {default_config}")
+                        return default_config
                     
                     # 文字列を整形して余分な文字を削除
                     config_text = config_text.replace('\n', '').replace('\r', '').strip()
@@ -96,15 +119,22 @@ class TranscriptionService:
                     if config_text.endswith(',}'):
                         config_text = config_text[:-2] + '}'
                     
+                    logger.info(f"設定ファイル内容（処理後）: {config_text[:100]}...")
                     config = json.loads(config_text)
             except json.JSONDecodeError as e:
                 logger.warning(f"設定ファイルのJSONパースに失敗しました: {str(e)}。デフォルトの設定を使用します。")
-                return {"transcription": {"method": "gpt4_audio"}}
+                default_config = {"transcription": {"method": "gpt4_audio"}}
+                logger.info(f"JSONエラー時のデフォルト設定内容: {default_config}")
+                return default_config
             except Exception as e:
                 logger.warning(f"設定ファイルの読み込み中に予期せぬエラーが発生しました: {str(e)}。デフォルトの設定を使用します。")
-                return {"transcription": {"method": "gpt4_audio"}}
+                default_config = {"transcription": {"method": "gpt4_audio"}}
+                logger.info(f"その他エラー時のデフォルト設定内容: {default_config}")
+                return default_config
             
             method = config.get("transcription", {}).get("method", "gpt4_audio")
+            logger.info(f"読み込まれた書き起こし方式: {method}")
+            
             if method not in ["whisper_gpt4", "gpt4_audio", "gemini"]:
                 logger.warning(f"無効な書き起こし方式が指定されています: {method}")
                 logger.info("デフォルトの書き起こし方式を使用します。")
@@ -114,7 +144,9 @@ class TranscriptionService:
             
         except Exception as e:
             logger.error(f"設定ファイルの処理中に予期せぬエラーが発生しました: {str(e)}")
-            return {"transcription": {"method": "gpt4_audio"}}
+            default_config = {"transcription": {"method": "gpt4_audio"}}
+            logger.info(f"最終エラー時のデフォルト設定内容: {default_config}")
+            return default_config
 
     def process_audio(self, audio_file: pathlib.Path, additional_prompt: str = "") -> Dict[str, Any]:
         """音声ファイルの書き起こし処理を実行"""

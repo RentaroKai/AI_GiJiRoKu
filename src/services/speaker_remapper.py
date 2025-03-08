@@ -194,10 +194,15 @@ def create_speaker_remapper() -> SpeakerRemapperBase:
     # 設定からAIモデルタイプを取得
     ai_model = config_manager.get_config().transcription.method
     
+    # 詳細なログ
+    logger.info(f"話者リマッパー作成: 設定されたAIモデル={ai_model}")
+    logger.info(f"話者リマッパー作成: config_manager={config_manager}")
+    logger.info(f"話者リマッパー作成: 設定ファイルパス={config_manager.config_file}")
+    
     # モデルタイプに応じてリマッパーを作成
     if ai_model == "gemini":
         logger.info("Gemini APIを使用した話者リマッパーを作成します")
         return GeminiSpeakerRemapper()
     else:
-        logger.info("OpenAI APIを使用した話者リマッパーを作成します")
+        logger.info(f"OpenAI APIを使用した話者リマッパーを作成します (AIモデル: {ai_model})")
         return OpenAISpeakerRemapper() 
