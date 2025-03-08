@@ -1,5 +1,16 @@
+"""
+パス解決ユーティリティ
+
+Changes:
+- ffmpeg_handler モジュールを使用するように更新
+- 既存の関数はそのままに、内部実装を変更
+"""
+
 import os
 import sys
+from src.utils.ffmpeg_handler import get_base_path as handler_get_base_path
+from src.utils.ffmpeg_handler import get_ffmpeg_path as handler_get_ffmpeg_path
+from src.utils.ffmpeg_handler import get_ffprobe_path as handler_get_ffprobe_path
 
 def get_base_path():
     """
@@ -7,25 +18,16 @@ def get_base_path():
     - PyInstallerでビルドされた実行環境の場合は sys._MEIPASS を返す
     - 通常の Python 実行の場合は、プロジェクトルートを返す
     """
-    if getattr(sys, 'frozen', False):
-        # frozen の場合は PyInstaller による実行環境
-        return sys._MEIPASS
-    else:
-        # このファイル (src/utils/paths.py) の2階層上をプロジェクトルートとする
-        return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+    return handler_get_base_path()
 
 def get_ffmpeg_path():
     """
     FFmpeg実行ファイルの絶対パスを返す。
     """
-    base_path = get_base_path()
-    return os.path.join(base_path, "resources", "ffmpeg", "ffmpeg.exe")
+    return handler_get_ffmpeg_path()
 
-# 必要に応じて、ffprobe も同様に取得できる関数を追加可能
 def get_ffprobe_path():
     """
     ffprobe実行ファイルの絶対パスを返す。
-    ※最小構成のため、本来は必要なければこの関数は使用しない。
     """
-    base_path = get_base_path()
-    return os.path.join(base_path, "resources", "ffmpeg", "ffprobe.exe") 
+    return handler_get_ffprobe_path() 

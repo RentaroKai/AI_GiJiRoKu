@@ -1,11 +1,10 @@
 """
 Changes:
-- Added ffmpeg path configuration for PyInstaller compatibility
-- Added logging configuration for debugging ffmpeg path issues
-- Added explicit ffmpeg path setting for pydub
-- ffmpeg & ffprobe のバイナリ検出用のパス設定処理を追加
-- PATH 環境変数に ffmpeg フォルダを追加して、ffprobe.exe も正しく実行できるように修正
-Date: [current_date]
+- FFMPEGの設定処理を一元化し、ffmpeg_handlerモジュールを使用するように変更
+- 重複するパス解決とFFMPEG設定関数を削除
+- 一時ファイル処理をシンプル化
+- 明示的なFFMPEG設定処理を追加
+Date: 2023-03-07
 """
 
 import os
@@ -20,7 +19,7 @@ from pathlib import Path
 from datetime import datetime
 from src.modules.audio_processor import AudioProcessor
 from pydub import AudioSegment
-from src.utils.paths import get_ffmpeg_path
+from src.utils.ffmpeg_handler import setup_ffmpeg
 
 # ロガーの初期化
 logger = logging.getLogger(__name__)
@@ -28,43 +27,9 @@ logger = logging.getLogger(__name__)
 # ログ出力を設定します（デバッグ用）
 logging.basicConfig(level=logging.DEBUG)
 
-def get_base_path():
-    """
-    PyInstaller の場合は sys._MEIPASS、通常実行の場合は実行ディレクトリを返す。
-    """
-    try:
-        base_path = sys._MEIPASS
-        logging.debug("EXE実行中: sys._MEIPASS = %s", base_path)
-    except AttributeError:
-        base_path = os.path.abspath(".")
-        logging.debug("通常実行中: base_path = %s", base_path)
-    return base_path
-
-def get_ffmpeg_path():
-    """
-    バンドルした ffmpeg.exe のフルパスを取得します。
-    """
-    base_path = get_base_path()
-    ffmpeg_path = os.path.join(base_path, "resources", "ffmpeg", "ffmpeg.exe")
-    if not os.path.exists(ffmpeg_path):
-        logging.error("ffmpeg.exe が見つかりません: %s", ffmpeg_path)
-    else:
-        logging.debug("ffmpeg.exe のパス: %s", ffmpeg_path)
-    return ffmpeg_path
-
-def add_ffmpeg_bin_to_path():
-    """
-    バンドルしたフォルダ（ffmpeg, ffprobe 含む）を PATH 環境変数に追加します。
-    """
-    base_path = get_base_path()
-    bin_path = os.path.join(base_path, "resources", "ffmpeg")
-    os.environ["PATH"] = bin_path + os.pathsep + os.environ.get("PATH", "")
-    logging.debug("Updated PATH: %s", os.environ["PATH"])
-
-# pydubが利用するffmpegのパスを明示的に設定
-AudioSegment.converter = get_ffmpeg_path()
-# PATH を更新して ffprobe.exe も検索可能に
-add_ffmpeg_bin_to_path()
+# FFMPEGの初期設定
+ffmpeg_path, ffprobe_path = setup_ffmpeg()
+logger.info(f"FFmpeg設定: {ffmpeg_path}, ffprobe: {ffprobe_path}")
 
 # アプリケーションのベースディレクトリを設定
 if getattr(sys, 'frozen', False):
@@ -78,62 +43,6 @@ else:
 
 # 一時ディレクトリの設定
 TEMP_DIR = Path(os.getenv('TEMP', os.getenv('TMP', '.'))) / 'GiJiRoKu'
-
-def setup_ffmpeg():
-    """FFmpegの設定"""
-    try:
-        # 一時ディレクトリの作成
-        TEMP_DIR.mkdir(parents=True, exist_ok=True)
-        
-        # FFmpegの実行ファイルパス
-        if getattr(sys, 'frozen', False):
-            # PyInstallerでビルドされた場合
-            ffmpeg_src = BASE_DIR / 'resources' / 'ffmpeg' / 'ffmpeg.exe'
-            if not ffmpeg_src.exists():
-                # バックアップパスとしてAPP_DIRも確認
-                ffmpeg_src = APP_DIR / 'resources' / 'ffmpeg' / 'ffmpeg.exe'
-            logging.debug(f"PyInstaller実行モード: FFmpegパス = {ffmpeg_src}")
-        else:
-            # 通常実行時
-            ffmpeg_src = BASE_DIR / 'resources' / 'ffmpeg' / 'ffmpeg.exe'
-            logging.debug(f"通常実行モード: FFmpegパス = {ffmpeg_src}")
-        
-        if not ffmpeg_src.exists():
-            logging.error(f"FFmpeg実行ファイルが見つかりません: {ffmpeg_src}")
-            logging.debug(f"現在のBASE_DIR: {BASE_DIR}")
-            logging.debug(f"現在のAPP_DIR: {APP_DIR}")
-            # 利用可能なパスを探索
-            possible_paths = [
-                BASE_DIR / 'resources' / 'ffmpeg' / 'ffmpeg.exe',
-                APP_DIR / 'resources' / 'ffmpeg' / 'ffmpeg.exe',
-                BASE_DIR / 'ffmpeg.exe',
-                APP_DIR / 'ffmpeg.exe'
-            ]
-            for path in possible_paths:
-                logging.debug(f"FFmpegを探索中: {path}")
-                if path.exists():
-                    ffmpeg_src = path
-                    logging.info(f"FFmpegが見つかりました: {path}")
-                    break
-            else:
-                raise FileNotFoundError(f"FFmpeg実行ファイルが見つかりません: {ffmpeg_src}")
-            
-        ffmpeg_dest = TEMP_DIR / 'ffmpeg.exe'
-        logging.debug(f"FFmpeg一時ファイルパス: {ffmpeg_dest}")
-        
-        # FFmpegが一時ディレクトリに存在しない場合はコピー
-        if not ffmpeg_dest.exists():
-            shutil.copy2(ffmpeg_src, ffmpeg_dest)
-            logging.debug("FFmpegファイルを一時ディレクトリにコピーしました")
-            
-        # 環境変数にFFmpegのパスを設定
-        os.environ['FFMPEG_BINARY'] = str(ffmpeg_dest)
-        
-        logging.info(f"FFmpegを設定しました: {ffmpeg_dest}")
-        
-    except Exception as e:
-        logging.error(f"FFmpegの設定中にエラーが発生しました: {e}")
-        raise
 
 def cleanup_temp():
     """一時ファイルおよびoutputフォルダー内のmp3とjsonファイルのクリーンアップを行う"""
@@ -276,16 +185,14 @@ def main():
         # ロギングの設定
         print("ロギングの設定を開始します...")
         setup_logging()
+        
         logger.info("強制的に一時ファイルのクリーンアップを実行します...")
         cleanup_temp()
+        
         logger.info(f"アプリケーションを起動中... (実行パス: {BASE_DIR})")
         logger.debug(f"実行パス: {BASE_DIR}")
         logger.debug(f"アプリケーションパス: {APP_DIR}")
-        
-        # FFmpegの設定
-        logger.info("FFmpegの設定を開始します...")
-        setup_ffmpeg()
-        
+                
         # 終了時の一時ファイルクリーンアップを登録
         atexit.register(cleanup_temp)
         
