@@ -13,6 +13,56 @@ import re
 
 logger = logging.getLogger(__name__)
 
+def add_speaker_identifier(text, identifier):
+    """
+    文字起こしテキスト内の話者名に識別子を付加する
+    
+    Args:
+        text (str): 元の文字起こしテキスト
+        identifier (str): 付加する識別子 (例: "seg1")
+        
+    Returns:
+        str: 話者名に識別子が付加されたテキスト
+    """
+    # テキストがJSON形式かを確認
+    try:
+        # JSONとして解析を試みる
+        if text.strip().startswith('{') or text.strip().startswith('['):
+            data = json.loads(text)
+            
+            # JSONオブジェクトの場合
+            if isinstance(data, dict):
+                if "speaker" in data:
+                    data["speaker"] = f"{data['speaker']}_{identifier}"
+                # 会話リストを含む場合
+                if "conversations" in data and isinstance(data["conversations"], list):
+                    for conversation in data["conversations"]:
+                        if isinstance(conversation, dict) and "speaker" in conversation:
+                            conversation["speaker"] = f"{conversation['speaker']}_{identifier}"
+            
+            # JSON配列の場合
+            elif isinstance(data, list):
+                for item in data:
+                    if isinstance(item, dict) and "speaker" in item:
+                        item["speaker"] = f"{item['speaker']}_{identifier}"
+            
+            return json.dumps(data, ensure_ascii=False)
+    except (json.JSONDecodeError, AttributeError):
+        # JSONとして解析できない場合は通常のテキストとして処理
+        pass
+    
+    # 通常のテキストの場合、正規表現で話者名を識別して置換
+    # 一般的な話者パターン: "話者名:" や "話者名 :"
+    text = re.sub(r'(話者\d+)\s*:', r'\1_' + identifier + ':', text)
+    text = re.sub(r'(スピーカー\d+)\s*:', r'\1_' + identifier + ':', text)
+    text = re.sub(r'(Speaker\s*\d+)\s*:', r'\1_' + identifier + ':', text)
+    
+    # 不正なJSONの場合でも話者名を識別して置換（JSONっぽい文字列の場合）
+    if '"speaker"' in text:
+        text = re.sub(r'"speaker"\s*:\s*"([^"]*)"', r'"speaker": "\1_' + identifier + '"', text)
+    
+    return text
+
 class TranscriptionError(Exception):
     """書き起こし処理関連のエラーを扱うカスタム例外クラス"""
     pass
@@ -266,6 +316,11 @@ class TranscriptionService:
                     logger.warning(f"セグメント {i} の文字起こし結果が空です")
                     continue
                 
+                # 話者名に識別子を付加 (セグメント番号を使用)
+                segment_identifier = f"seg{i}"
+                segment_text = add_speaker_identifier(segment_text, segment_identifier)
+                logger.info(f"セグメント {i} の話者名に識別子 '{segment_identifier}' を付加しました")
+                
                 # セグメント情報を追加
                 segment_result = {
                     "segment": i,
@@ -361,6 +416,11 @@ class TranscriptionService:
                 if not segment_text:
                     logger.warning(f"セグメント {i} の文字起こし結果が空です")
                     continue
+                
+                # 話者名に識別子を付加 (セグメント番号を使用)
+                segment_identifier = f"seg{i}"
+                segment_text = add_speaker_identifier(segment_text, segment_identifier)
+                logger.info(f"セグメント {i} の話者名に識別子 '{segment_identifier}' を付加しました")
                 
                 # セグメント情報を追加
                 segment_result = {
