@@ -335,12 +335,12 @@ class SettingsDialog(tk.Toplevel):
         )
         self.speaker_remapping_label = ttk.Label(
             self.transcription_frame,
-            text="AIを使用して異なるセグメント間の同じ話者を識別し、話者名を統一します。\n無効にすると処理時間が短縮されますが、話者名が統一されません。",
+            text="バラバラの話者名が（部分的に）統一されます",
             wraplength=350
         )
         
         # 分割時間設定
-        self.segment_length_frame = ttk.LabelFrame(self.basic_tab, text="分割処理用の秒数", padding=5)
+        self.segment_length_frame = ttk.LabelFrame(self.basic_tab, text="ファイルを何秒ごとに分割処理するか(推奨:300秒)", padding=5)
         self.segment_length_var = tk.StringVar(value=str(self.segment_length))
         self.segment_length_entry = ttk.Entry(self.segment_length_frame, textvariable=self.segment_length_var)
 
