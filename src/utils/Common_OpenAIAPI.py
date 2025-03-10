@@ -4,6 +4,7 @@ import base64
 from typing import List, Dict, Any
 import logging
 from pathlib import Path
+from .config import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,43 @@ def setup_logging(log_level=logging.INFO):
     logger.setLevel(log_level)
 
 def get_client():
+    """
+    OpenAI APIクライアントを取得する
+    
+    環境変数 OPENAI_API_KEY からAPIキーを取得
+    環境変数に設定されていない場合は設定ファイルから取得
+    どちらにも存在しない場合はエラーを発生
+    
+    Returns:
+        openai.OpenAI: OpenAI APIクライアント
+    
+    Raises:
+        APIError: APIキーが見つからない場合
+    """
     if 'SSL_CERT_FILE' in os.environ:
         del os.environ['SSL_CERT_FILE']
+    
+    # 1. 環境変数からAPIキーを取得
     api_key = os.getenv("OPENAI_API_KEY")
+    
+    # 2. 環境変数にない場合は設定ファイルから取得
     if not api_key:
-        logger.error("OpenAI API keyが環境変数に設定されていません")
-        raise APIError("OpenAI API keyが環境変数に設定されていません")
+        logger.info("環境変数にOpenAI API keyが設定されていないため、設定ファイルから取得します")
+        try:
+            api_key = config_manager.get_config().openai_api_key
+            if api_key:
+                logger.info("設定ファイルからOpenAI API keyを取得しました")
+            else:
+                logger.error("設定ファイルにもOpenAI API keyが設定されていません")
+        except Exception as e:
+            logger.error(f"設定ファイルからのOpenAI API key取得中にエラーが発生: {str(e)}")
+    
+    # 3. どちらにも存在しない場合はエラーを発生
+    if not api_key:
+        error_msg = "OpenAI API keyが環境変数にも設定ファイルにも設定されていません"
+        logger.error(error_msg)
+        raise APIError(error_msg)
+    
     openai.api_key = api_key
     return openai.OpenAI()
 
