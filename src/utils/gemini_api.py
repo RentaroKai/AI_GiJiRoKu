@@ -7,6 +7,7 @@ import json
 
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
+from ..utils.config import config_manager
 
 logger = logging.getLogger(__name__)
 
@@ -20,11 +21,10 @@ class TranscriptionError(Exception):
     pass
 
 class GeminiAPI:
-    def __init__(self, api_key: str = "", transcription_model: str = DEFAULT_TRANSCRIPTION_MODEL, minutes_model: str = DEFAULT_MINUTES_MODEL, title_model: str = DEFAULT_TITLE_MODEL):
+    def __init__(self, transcription_model: str = DEFAULT_TRANSCRIPTION_MODEL, minutes_model: str = DEFAULT_MINUTES_MODEL, title_model: str = DEFAULT_TITLE_MODEL):
         """Initialize Gemini API client
 
         Args:
-            api_key (str): Gemini API key. 環境変数GOOGLE_API_KEYが優先されます。
             transcription_model (str): 書き起こし用のモデル名。デフォルトはDEFAULT_TRANSCRIPTION_MODEL
             minutes_model (str): 議事録まとめ用のモデル名。デフォルトはDEFAULT_MINUTES_MODEL
             title_model (str): タイトル生成用のモデル名。デフォルトはDEFAULT_TITLE_MODEL
@@ -35,11 +35,14 @@ class GeminiAPI:
             httplib2.CA_CERTS = cert_path
             logger.info(f"SSL証明書が設定されました: {cert_path}")
 
-        # 環境変数を優先、なければ引数のapi_keyを使用
-        self.api_key = os.getenv("GOOGLE_API_KEY") or api_key
+        # 環境変数を優先、なければ設定ファイルからAPIキーを取得
+        config = config_manager.get_config()
+        self.api_key = os.getenv("GOOGLE_API_KEY") or config.gemini_api_key
 
         if not self.api_key:
-            logger.warning("Gemini API keyが設定されていません")
+            error_msg = "Gemini API keyが設定されていません。環境変数GOOGLE_API_KEYまたは設定ファイルのgemini_api_keyを設定してください。"
+            logger.error(error_msg)
+            raise TranscriptionError(error_msg)
         else:
             logger.info("Gemini API keyが設定されています")
             genai.configure(

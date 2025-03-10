@@ -290,11 +290,10 @@ class GeminiSpeakerRemapper(SpeakerRemapperBase):
         prompt = self.get_remap_prompt()
         
         try:
-            # Gemini APIの初期化
+            # Gemini APIインスタンスを作成
             api = GeminiAPI()
             
             # Gemini APIを使用してプロンプトと文字起こしテキストを送信
-            # 注意: summarize_minutesの引数順序は (text, system_prompt)
             response = api.summarize_minutes(
                 text=transcript_text,
                 system_prompt=prompt

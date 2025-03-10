@@ -96,12 +96,7 @@ class TranscriptionService:
         
         # Gemini APIの初期化（Gemini方式が選択されている場合）
         if self.transcription_method == "gemini":
-            # 環境変数を優先、なければ設定ファイルから
-            gemini_api_key = os.getenv("GOOGLE_API_KEY") or self.config.get("gemini", {}).get("api_key")
-            if not gemini_api_key:
-                logger.error("Gemini API keyが設定されていません")
-                raise TranscriptionError("Gemini API keyが設定されていません")
-            self.gemini_api = GeminiAPI(gemini_api_key)
+            self.gemini_api = GeminiAPI()
             logger.info("Gemini APIを初期化しました")
         
         # プロンプトの読み込み
