@@ -37,11 +37,11 @@ class SummarizerFactory:
                     config = json.load(f)
             except (FileNotFoundError, json.JSONDecodeError) as e:
                 logger.warning(f"設定ファイルの読み込みに失敗しました: {str(e)}")
-                logger.info("デフォルトのOpenAISummarizerを使用します")
-                return OpenAISummarizer()
+                logger.info("デフォルトのGeminiSummarizerを使用します")
+                return GeminiSummarizer()
 
-            # 議事録生成モデルの取得（デフォルトはOpenAI）
-            model = config.get("summarization", {}).get("model", "openai")
+            # 議事録生成モデルの取得（デフォルトはGemini）
+            model = config.get("summarization", {}).get("model", "gemini")
             logger.info(f"議事録生成モデル: {model}")
 
             # モデルに応じたSummarizerインスタンスを生成

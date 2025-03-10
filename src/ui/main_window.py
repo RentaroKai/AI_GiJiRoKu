@@ -263,10 +263,10 @@ class SettingsDialog(tk.Toplevel):
         self.config = self._load_config()
         self.openai_api_key = self.config.get("openai_api_key", "")
         self.gemini_api_key = self.config.get("gemini_api_key", "")
-        self.transcription_method = self.config.get("transcription", {}).get("method", "gpt4_audio")
+        self.transcription_method = self.config.get("transcription", {}).get("method", "gemini")
+        self.summarization_model = self.config.get("summarization", {}).get("model", "gemini")
         self.segment_length = self.config.get("transcription", {}).get("segment_length_seconds", 300)
         self.enable_speaker_remapping = self.config.get("transcription", {}).get("enable_speaker_remapping", True)
-        self.summarization_model = self.config.get("summarization", {}).get("model", "openai")
         self.output_dir = self.config.get("output", {}).get("default_dir", os.path.expanduser("~/Documents/議事録"))
 
         # プロンプトの読み込み

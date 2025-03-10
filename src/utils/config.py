@@ -18,7 +18,7 @@ class OutputConfig(BaseModel):
 
 class TranscriptionConfig(BaseModel):
     """文字起こし設定モデル"""
-    method: str = "gpt4_audio"
+    method: str = "gemini"
     segment_length_seconds: int = 450
     enable_speaker_remapping: bool = True  # 話者置換処理を有効にするかどうか
 
@@ -71,7 +71,7 @@ class ConfigManager:
                 logger.info("設定ファイルの読み込みに成功しました")
                 
                 # 文字起こし設定の詳細なログ
-                transcription_method = config_data.get("transcription", {}).get("method", "gpt4_audio")
+                transcription_method = config_data.get("transcription", {}).get("method", "gemini")
                 logger.info(f"読み込まれた文字起こし方式: {transcription_method}")
                 
                 return AppConfig(**config_data)
