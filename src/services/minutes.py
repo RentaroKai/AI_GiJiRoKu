@@ -77,7 +77,7 @@ class MinutesService:
             logger.info(f"議事録プロンプトを取得しました（{len(prompt)}文字）")
 
             # Summarizerの生成
-            summarizer = SummarizerFactory.create_summarizer(self.config_path)
+            summarizer = SummarizerFactory.create_summarizer()
             logger.info("議事録生成を開始します")
 
             # 議事録の生成

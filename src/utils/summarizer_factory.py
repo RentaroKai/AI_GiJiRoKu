@@ -2,6 +2,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
+from src.utils.config import config_manager
 
 from .summarizer import Summarizer
 from ..summarizers.openai_summarizer import OpenAISummarizer
@@ -17,12 +18,9 @@ class SummarizerFactory:
     """議事録生成クラスのファクトリ"""
 
     @staticmethod
-    def create_summarizer(config_path: str = "config/settings.json") -> Summarizer:
+    def create_summarizer() -> Summarizer:
         """
         設定に基づいて適切なSummarizerインスタンスを生成する
-
-        Args:
-            config_path (str): 設定ファイルのパス
 
         Returns:
             Summarizer: 生成されたSummarizerインスタンス
@@ -31,17 +29,16 @@ class SummarizerFactory:
             SummarizerFactoryError: Summarizerの生成に失敗した場合
         """
         try:
-            # 設定ファイルの読み込み
+            # 設定ファイルの取得（config_managerによるパス解決・PyInstaller対応）
             try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-            except (FileNotFoundError, json.JSONDecodeError) as e:
+                config = config_manager.get_config()
+            except Exception as e:
                 logger.warning(f"設定ファイルの読み込みに失敗しました: {str(e)}")
                 logger.info("デフォルトのGeminiSummarizerを使用します")
                 return GeminiSummarizer()
 
             # 議事録生成モデルの取得（デフォルトはGemini）
-            model = config.get("summarization", {}).get("model", "gemini")
+            model = config.transcription.method
             logger.info(f"議事録生成モデル: {model}")
 
             # モデルに応じたSummarizerインスタンスを生成
