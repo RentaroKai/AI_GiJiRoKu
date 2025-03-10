@@ -13,6 +13,7 @@ from ..services.file_organizer import FileOrganizer
 from ..utils.config import config_manager, ConfigError
 from ..utils.prompt_manager import prompt_manager
 from ..services.processor import process_audio_file
+from ..utils.path_resolver import get_config_file_path
 import json
 
 logger = logging.getLogger(__name__)
@@ -460,10 +461,12 @@ class SettingsDialog(tk.Toplevel):
     def _save_settings(self):
         """設定の保存"""
         try:
+            # 統一されたパス解決ユーティリティを使用
+            config_file = get_config_file_path()
+            logger.info(f"設定を保存します: {config_file.absolute()}")
+            
             # 設定ファイルの読み込み
             try:
-                # prompt_managerが使用するパスと同じパスを使用
-                config_file = prompt_manager.config_file
                 if config_file.exists():
                     with open(config_file, "r", encoding="utf-8") as f:
                         config = json.load(f)
@@ -509,8 +512,8 @@ class SettingsDialog(tk.Toplevel):
     def _load_config(self):
         """設定の読み込み"""
         try:
-            # prompt_managerが使用するパスと同じパスを使用
-            config_file = prompt_manager.config_file
+            # 統一されたパス解決ユーティリティを使用
+            config_file = get_config_file_path()
             if config_file.exists():
                 with open(config_file, "r", encoding="utf-8") as f:
                     return json.load(f)

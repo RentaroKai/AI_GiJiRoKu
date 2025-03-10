@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from pydantic import BaseModel
 import sys
+from .path_resolver import get_config_file_path
 
 logger = logging.getLogger(__name__)
 
@@ -38,27 +39,15 @@ class AppConfig(BaseModel):
         arbitrary_types_allowed = True
 
 class ConfigManager:
-    def __init__(self, config_file: str = "config/settings.json"):
+    def __init__(self, config_file: str = "settings.json"):
         # 実行モードの詳細なログ
         is_frozen = getattr(sys, 'frozen', False)
         logger.info(f"ConfigManager初期化: 実行モード={'PyInstaller' if is_frozen else '通常'}")
         
-        self.config_file = Path(config_file)
-        # 設定ファイルの絶対パスのログ
+        # 統一されたパス解決ユーティリティを使用
+        self.config_file = get_config_file_path(config_file)
         logger.info(f"設定ファイル絶対パス: {self.config_file.absolute()}")
         
-        # PyInstallerモードの場合、実行ファイルディレクトリ内の設定ファイルを優先
-        if is_frozen:
-            exe_dir = Path(sys.executable).parent
-            alt_config_file = exe_dir / config_file
-            logger.info(f"PyInstaller実行モードの代替設定ファイルパス: {alt_config_file}")
-            
-            if alt_config_file.exists():
-                logger.info(f"PyInstaller実行モードで代替設定ファイルが見つかりました。こちらを使用します。")
-                self.config_file = alt_config_file
-        
-        logger.info(f"最終的に使用する設定ファイル: {self.config_file}")
-        self.config_file.parent.mkdir(parents=True, exist_ok=True)
         self.config = self._load_config()
 
     def _load_config(self) -> AppConfig:
@@ -93,12 +82,13 @@ class ConfigManager:
         """設定の保存"""
         try:
             config_dict = self.config.dict()
+            logger.info(f"設定を保存します: {self.config_file.absolute()}")
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(config_dict, f, indent=4, ensure_ascii=False)
-            logger.info("Configuration saved successfully")
+            logger.info("設定の保存に成功しました")
         except Exception as e:
-            logger.error(f"Error saving configuration: {str(e)}")
-            raise ConfigError(f"Failed to save configuration: {str(e)}")
+            logger.error(f"設定の保存中にエラーが発生しました: {str(e)}")
+            raise ConfigError(f"設定の保存に失敗しました: {str(e)}")
 
     def update_config(self, config_dict: Dict[str, Any]) -> None:
         """

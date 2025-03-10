@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Dict, Optional
 import sys
+from .path_resolver import get_config_file_path, resolve_resource_path
 
 logger = logging.getLogger(__name__)
 
@@ -17,30 +18,24 @@ class PromptManager:
         "speakerremap": "src/prompts/speakerremap.txt"
     }
     
-    def __init__(self, config_file: str = "config/settings.json"):
+    def __init__(self, config_file: str = "settings.json"):
         """
         プロンプト管理クラスの初期化
         
         Args:
-            config_file (str): 設定ファイルパス
+            config_file (str): 設定ファイル名
         """
-        # 実行環境に応じたパス解決
+        # 実行環境に応じたリソースパス解決
         if getattr(sys, 'frozen', False):
             # PyInstaller実行時
-            # プロンプトファイルのパスは_MEIPASSを基準
             self.base_dir = Path(sys._MEIPASS)
-            # 設定ファイルは実行ファイルのディレクトリを基準
-            self.app_dir = Path(sys.executable).parent
-            # 実行時は設定ファイルパスを実行ファイルディレクトリに変更
-            self.config_file = self.app_dir / config_file
         else:
             # 通常実行時
             self.base_dir = Path.cwd()
-            self.app_dir = self.base_dir
-            self.config_file = self.base_dir / config_file
         
-        logger.debug(f"設定ファイルパス: {self.config_file}")
-        self.config_file.parent.mkdir(parents=True, exist_ok=True)
+        # 統一されたパス解決ユーティリティを使用
+        self.config_file = get_config_file_path(config_file)
+        logger.info(f"PromptManager: 設定ファイルパス: {self.config_file.absolute()}")
         
     def get_prompt(self, prompt_type: str) -> str:
         """
@@ -95,12 +90,11 @@ class PromptManager:
             config["prompts"][prompt_type] = prompt_text
             
             # 設定ファイルに書き込み
-            logger.debug(f"設定を保存します: {self.config_file}")
-            os.makedirs(self.config_file.parent, exist_ok=True)
+            logger.info(f"カスタムプロンプトを保存します: {self.config_file.absolute()}")
             with open(self.config_file, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=4, ensure_ascii=False)
                 
-            logger.info(f"カスタムプロンプトを保存しました: {prompt_type} ({self.config_file})")
+            logger.info(f"カスタムプロンプトを保存しました: {prompt_type}")
             return True
             
         except Exception as e:
@@ -130,6 +124,7 @@ class PromptManager:
                     del config["prompts"]
                 
                 # 設定ファイルに書き込み
+                logger.info(f"プロンプト設定をリセットします: {self.config_file.absolute()}")
                 with open(self.config_file, 'w', encoding='utf-8') as f:
                     json.dump(config, f, indent=4, ensure_ascii=False)
                 
@@ -152,20 +147,12 @@ class PromptManager:
         """
         try:
             if prompt_type in self.DEFAULT_PROMPTS:
-                # PyInstaller実行時のパス解決
-                if getattr(sys, 'frozen', False):
-                    prompt_path = self.base_dir / self.DEFAULT_PROMPTS[prompt_type]
-                else:
-                    prompt_path = Path(self.DEFAULT_PROMPTS[prompt_type])
+                # 共通パス解決ユーティリティを使用
+                prompt_path = resolve_resource_path(self.DEFAULT_PROMPTS[prompt_type])
                 
                 logger.debug(f"プロンプトタイプ: {prompt_type}")
                 logger.debug(f"検索パス: {prompt_path}")
                 logger.debug(f"パスが存在するか: {prompt_path.exists()}")
-                if not prompt_path.exists():
-                    logger.debug(f"現在のディレクトリ: {os.getcwd()}")
-                    logger.debug(f"base_dirの値: {self.base_dir}")
-                    logger.debug(f"app_dirの値: {self.app_dir}")
-                    logger.debug(f"sys._MEIPASSの値: {getattr(sys, '_MEIPASS', 'Not defined')}")
                 
                 if prompt_path.exists():
                     with open(prompt_path, 'r', encoding='utf-8') as f:

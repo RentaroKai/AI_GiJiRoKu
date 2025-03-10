@@ -20,6 +20,7 @@ from datetime import datetime
 from src.modules.audio_processor import AudioProcessor
 from pydub import AudioSegment
 from src.utils.ffmpeg_handler import setup_ffmpeg
+from src.utils.path_resolver import get_config_file_path
 
 # ロガーの初期化
 logger = logging.getLogger(__name__)
@@ -139,38 +140,23 @@ def setup_default_output_dir():
 def load_config():
     """設定ファイルを読み込む"""
     try:
-        logger.info("設定ファイルを読み込みます: config/settings.json")
-        # 実行モードをログに記録
-        is_frozen = getattr(sys, 'frozen', False)
-        logger.info(f"load_config: 実行モード={'PyInstaller' if is_frozen else '通常'}")
+        # 統一されたパス解決ユーティリティを使用
+        config_file = get_config_file_path()
+        logger.info(f"設定ファイルを読み込みます: {config_file.absolute()}")
         
-        # 実行パスの詳細をログに記録
-        if is_frozen:
-            exe_dir = Path(sys.executable).parent
-            settings_path = exe_dir / 'config/settings.json'
-            logger.info(f"PyInstaller実行モードでの設定ファイルパス: {settings_path}")
-            
-            if settings_path.exists():
-                logger.info(f"PyInstaller実行モード: 設定ファイルが存在します")
-                with open(settings_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    # 設定内容のログ
-                    transcription_method = config.get('transcription', {}).get('method', 'gpt4_audio')
-                    logger.info(f"PyInstaller実行モードで読み込まれた文字起こし方式: {transcription_method}")
-                    return config
-            else:
-                logger.warning(f"PyInstaller実行モード: 設定ファイルが見つかりません")
-        
-        # 通常の読み込み処理
-        with open('config/settings.json', 'r', encoding='utf-8') as f:
-            config = json.load(f)
-            # 設定内容のログ
-            transcription_method = config.get('transcription', {}).get('method', 'gpt4_audio')
-            logger.info(f"読み込まれた文字起こし方式: {transcription_method}")
-            return config
+        if config_file.exists():
+            with open(config_file, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+                # 設定内容のログ
+                transcription_method = config.get('transcription', {}).get('method', 'gpt4_audio')
+                logger.info(f"読み込まれた文字起こし方式: {transcription_method}")
+                return config
+        else:
+            logger.warning(f"設定ファイルが見つかりません: {config_file}")
+            return {}
     except Exception as e:
         logger.error(f"設定ファイルの読み込み中にエラーが発生しました: {str(e)}")
-        raise
+        return {}
 
 def process_audio_file(input_file, config):
     """音声ファイルを処理する"""
