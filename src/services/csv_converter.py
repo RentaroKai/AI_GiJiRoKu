@@ -112,8 +112,8 @@ class CSVConverterService:
                 logger.error(error_msg)
                 raise CSVConversionError(error_msg)
 
-            # CSVファイルの作成
-            with open(output_file, "w", newline="", encoding="utf-8") as csvfile:
+            # CSVファイルの作成 - BOM付きUTF-8で保存
+            with open(output_file, "w", newline="", encoding="utf-8-sig") as csvfile:
                 csvwriter = csv.writer(csvfile)
                 csvwriter.writerow(["Speaker", "Utterance"])  # ヘッダー行
 
