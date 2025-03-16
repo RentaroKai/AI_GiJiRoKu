@@ -604,8 +604,68 @@ class TranscriptionService:
             logger.warning("問題パターン検出: 'Take minutes of the meeting'")
             return True
 
+        # まず "utterance" フィールドを抽出して個別にチェック
+        try:
+            utterance_patterns = re.findall(r'"utterance"\s*:\s*"([^"]+)"', text)
+
+            # 抽出成功した場合は各utteranceをチェック
+            if utterance_patterns:
+                logger.info(f"{len(utterance_patterns)}個の発言を抽出してチェックします")
+                for utterance in utterance_patterns:
+                    if self._check_single_utterance_repetition(utterance):
+                        return True
+        except Exception as e:
+            # 正規表現抽出でエラーが発生した場合はログに記録
+            logger.warning(f"発言抽出中にエラーが発生しました: {str(e)}")
+
+        # 個別発言のチェックで問題が見つからなかった場合は全体チェックも実施
+        return self._check_whole_text_repetition(text)
+
+    def _check_single_utterance_repetition(self, utterance):
+        """
+        単一のutterance内での繰り返しをチェック
+
+        Args:
+            utterance (str): チェックする発言テキスト
+
+        Returns:
+            bool: 問題がある場合はTrue、それ以外はFalse
+        """
+        logger.debug(f"発言内の繰り返しをチェック: {utterance[:50]}...")
+
+        # 単語チェック
+        words = utterance.split()
+        for word in words:
+            if len(word) <= 1:  # 1文字の単語はスキップ
+                continue
+            count = words.count(word)
+            if count >= 80:
+                logger.warning(f"問題パターン検出: 発言内で単語 '{word}' が {count} 回繰り返されています")
+                return True
+
+        # フレーズチェック（短いフレーズの繰り返し）
+        problem_phrases = ["うん。", "はい。", "ええ。", "あの。", "えー。"]
+        for phrase in problem_phrases:
+            count = utterance.count(phrase)
+            if count >= 70:
+                logger.warning(f"問題パターン検出: 発言内でフレーズ '{phrase}' が {count} 回繰り返されています")
+                return True
+
+        return False
+
+    def _check_whole_text_repetition(self, text):
+        """
+        テキスト全体での繰り返しをチェック（既存のロジックを移行）
+
+        Args:
+            text (str): チェックする文字起こしテキスト
+
+        Returns:
+            bool: 問題がある場合はTrue、それ以外はFalse
+        """
+        logger.debug(f"テキスト全体の繰り返しをチェック: {text[:200]}...")
+
         # 方法1: 単語の繰り返しをチェック（日本語・英語両方対応）
-        logger.debug(f"単語の繰り返しをチェック: {text[:100]}...")
         words = text.split()
 
         # 繰り返しパターンのチェック（シンプルな方法）
@@ -623,14 +683,11 @@ class TranscriptionService:
                 else:
                     break
 
-            if count >= 100:  # 閾値を20から100に引き上げ
+            if count >= 200:
                 logger.warning(f"問題パターン検出: 単語 '{word}' が {count} 回繰り返されています")
                 return True
 
         # 方法2: フレーズの繰り返しをチェック（句読点を含む）
-        logger.debug("フレーズの繰り返しをチェック")
-        # 正規表現で短いフレーズの繰り返しを検出
-        # 例: 「うん。」「はい。」などが繰り返される場合
         short_phrases = re.findall(r'(.{1,5}[。、．，!！?？\s]+)', text)
         phrase_counts = {}
 
@@ -653,50 +710,10 @@ class TranscriptionService:
 
         # 同じフレーズが大量に繰り返されているかチェック
         for phrase, count in phrase_counts.items():
-            if count >= 100:  # 閾値を15から100に引き上げ
+            if count >= 200:
                 logger.warning(f"問題パターン検出: フレーズ '{phrase}' が {count} 回繰り返されています")
                 return True
 
-        # 方法3: 文字列のN-gramパターンをチェック（日本語のような分かち書きされない言語向け）
-        logger.debug("N-gramパターンのチェック")
-        n_values = [2, 3, 4]  # バイグラム、トライグラム、4-gramをチェック
+        # 方法3: N-gramパターンチェックは処理コストが高いため省略（発言単位チェックで対応可能）
 
-        for n in n_values:
-            # N-gramを生成
-            ngrams = [text[i:i+n] for i in range(len(text) - n + 1)]
-
-            # 特定のパターンを除外
-            filtered_ngrams = []
-            for ng in ngrams:
-                # 単一の記号や括弧のみは除外
-                if re.match(r'^[{}\[\]()<>「」『』【】\'\"]+$', ng):
-                    continue
-                filtered_ngrams.append(ng)
-
-            # 連続する同じN-gramをカウント
-            for i in range(len(filtered_ngrams)):
-                if i >= len(filtered_ngrams) - 10:  # 残りの長さが短すぎる場合はスキップ
-                    break
-
-                current_ngram = filtered_ngrams[i]
-                # 単一の記号や括弧のみは除外
-                if re.match(r'^[{}\[\]()<>「」『』【】\'\"]+$', current_ngram):
-                    continue
-
-                count = 1
-
-                # 同じN-gramが連続するかをチェック
-                for j in range(i+1, min(i+150, len(filtered_ngrams))):  # 検索範囲を拡大
-                    if filtered_ngrams[j] == current_ngram:
-                        count += 1
-                        if count >= 100:  # 閾値を10から100に引き上げ
-                            logger.warning(f"問題パターン検出: N-gram '{current_ngram}' が {count} 回繰り返されています")
-                            return True
-                    else:
-                        # 連続していない場合はカウントをリセット
-                        if count >= 10:  # デバッグログの閾値も調整
-                            logger.debug(f"N-gram '{current_ngram}' が {count} 回連続しました（閾値未満）")
-                        count = 1
-
-        logger.info("繰り返しパターンは検出されませんでした")
         return False
