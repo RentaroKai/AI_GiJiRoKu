@@ -94,6 +94,9 @@ class TranscriptionService:
         self.transcription_method = self.config.get("transcription", {}).get("method", "gpt4_audio")
         logger.info(f"書き起こし方式: {self.transcription_method}")
         
+        # 再試行フラグの初期化
+        self.has_reached_max_retries = False
+        
         # Gemini APIの初期化（Gemini方式が選択されている場合）
         if self.transcription_method == "gemini":
             self.gemini_api = GeminiAPI()
@@ -200,16 +203,27 @@ class TranscriptionService:
             logger.info(f"音声ファイルサイズ: {audio_file.stat().st_size:,} bytes")
             logger.info(f"使用する書き起こし方式: {self.transcription_method}")
             
+            # 再試行フラグをリセット
+            self.has_reached_max_retries = False
+            
             # タイムスタンプの生成
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
             logger.info(f"タイムスタンプ: {timestamp}")
 
+            # 書き起こし処理の実行
             if self.transcription_method == "whisper_gpt4":
-                return self._process_with_whisper_gpt4(audio_file, additional_prompt, timestamp)
+                result = self._process_with_whisper_gpt4(audio_file, additional_prompt, timestamp)
             elif self.transcription_method == "gemini":
-                return self._process_with_gemini(audio_file, timestamp)
+                result = self._process_with_gemini(audio_file, timestamp)
             else:  # gpt4_audio
-                return self._process_with_gpt4_audio(audio_file, timestamp)
+                result = self._process_with_gpt4_audio(audio_file, timestamp)
+            
+            # 処理完了後、最大再試行回数に達したかどうかをチェックして通知
+            if self.has_reached_max_retries:
+                result["warning"] = "一部のセグメントで最大再試行回数に達しました。文字起こし結果にエラーが含まれている可能性があります。"
+                logger.warning("警告: 一部のセグメントで最大再試行回数に達しました。文字起こし結果にエラーが含まれている可能性があります。")
+            
+            return result
             
         except Exception as e:
             logger.error(f"書き起こし処理中にエラーが発生しました: {str(e)}")
@@ -244,11 +258,36 @@ class TranscriptionService:
             logger.info(f"追加プロンプトあり（長さ: {len(additional_prompt)}文字）")
         
         full_prompt = f"{additional_prompt}\n{transcription}" if additional_prompt else transcription
-        formatted_text = generate_structured_chat_response(
-            system_prompt=self.system_prompt,
-            user_message_content=full_prompt,
-            json_schema=MEETING_TRANSCRIPT_SCHEMA
-        )
+        
+        # 再試行メカニズムを追加
+        max_retries = 2
+        formatted_text = None
+
+        for attempt in range(max_retries + 1):
+            try:
+                formatted_text = generate_structured_chat_response(
+                    system_prompt=self.system_prompt,
+                    user_message_content=full_prompt,
+                    json_schema=MEETING_TRANSCRIPT_SCHEMA
+                )
+               
+                # 問題のあるパターンをチェック
+                if formatted_text and self.is_problematic_transcription(formatted_text):
+                    if attempt < max_retries:
+                        logger.warning(f"整形結果に問題のあるパターンが検出されました。再試行します ({attempt+1}/{max_retries})")
+                        continue
+                    else:
+                        logger.error(f"整形処理が最大再試行回数に達しました。最後の結果を使用します。")
+                        self.has_reached_max_retries = True  # エラー表示のためのフラグ
+                break
+            except Exception as e:
+                logger.error(f"テキスト整形中にエラー: {str(e)}")
+                if attempt < max_retries:
+                    logger.warning(f"再試行します ({attempt+1}/{max_retries})")
+                else:
+                    logger.error(f"最大再試行回数に達しました。")
+                    self.has_reached_max_retries = True  # エラー表示のためのフラグ
+                    raise TranscriptionError(f"テキストの整形に失敗しました: {str(e)}")
         
         if not formatted_text:
             logger.error("テキスト整形の結果が空です")
@@ -302,10 +341,34 @@ class TranscriptionService:
             for i, segment_file in enumerate(split_files, 1):
                 logger.info(f"セグメント {i}/{len(split_files)} の文字起こしを実行中...")
                 
-                # セグメントの文字起こし
-                segment_text_raw = generate_audio_chat_response(str(segment_file), self.system_prompt)
-                # 文字起こし結果の余分な空白を除去
-                segment_text = re.sub(r'\s+', ' ', segment_text_raw).strip() if segment_text_raw else ""
+                # セグメントの文字起こし処理部分を変更
+                max_retries = 2  # 最大再試行回数
+                segment_text = None
+
+                for attempt in range(max_retries + 1):
+                    try:
+                        segment_text_raw = generate_audio_chat_response(str(segment_file), self.system_prompt)
+                        # 文字起こし結果の余分な空白を除去
+                        segment_text = re.sub(r'\s+', ' ', segment_text_raw).strip() if segment_text_raw else ""
+                       
+                        # 問題のあるパターンをチェック
+                        if segment_text and self.is_problematic_transcription(segment_text):
+                            if attempt < max_retries:
+                                logger.warning(f"セグメント {i} に問題のあるパターンが検出されました。再試行します ({attempt+1}/{max_retries})")
+                                continue
+                            else:
+                                logger.error(f"セグメント {i} の処理が最大再試行回数に達しました。最後の結果を使用します。")
+                                self.has_reached_max_retries = True  # エラー表示のためのフラグ
+                        # 問題なければループを抜ける
+                        break
+                    except Exception as e:
+                        logger.error(f"セグメント {i} の文字起こし中にエラー: {str(e)}")
+                        if attempt < max_retries:
+                            logger.warning(f"再試行します ({attempt+1}/{max_retries})")
+                        else:
+                            logger.error(f"最大再試行回数に達しました。このセグメントをスキップします。")
+                            self.has_reached_max_retries = True  # エラー表示のためのフラグ
+                            segment_text = ""
                 
                 if not segment_text:
                     logger.warning(f"セグメント {i} の文字起こし結果が空です")
@@ -403,10 +466,34 @@ class TranscriptionService:
             for i, segment_file in enumerate(split_files, 1):
                 logger.info(f"セグメント {i}/{len(split_files)} の文字起こしを実行中...")
                 
-                # セグメントの文字起こし
-                segment_text_raw = self.gemini_api.transcribe_audio(str(segment_file))
-                # 文字起こし結果の余分な空白を除去
-                segment_text = re.sub(r'\s+', ' ', segment_text_raw).strip() if segment_text_raw else ""
+                # セグメントの文字起こし処理部分を変更
+                max_retries = 2  # 最大再試行回数
+                segment_text = None
+
+                for attempt in range(max_retries + 1):
+                    try:
+                        segment_text_raw = self.gemini_api.transcribe_audio(str(segment_file))
+                        # 文字起こし結果の余分な空白を除去
+                        segment_text = re.sub(r'\s+', ' ', segment_text_raw).strip() if segment_text_raw else ""
+                       
+                        # 問題のあるパターンをチェック
+                        if segment_text and self.is_problematic_transcription(segment_text):
+                            if attempt < max_retries:
+                                logger.warning(f"セグメント {i} に問題のあるパターンが検出されました。再試行します ({attempt+1}/{max_retries})")
+                                continue
+                            else:
+                                logger.error(f"セグメント {i} の処理が最大再試行回数に達しました。最後の結果を使用します。")
+                                self.has_reached_max_retries = True  # エラー表示のためのフラグ
+                        # 問題なければループを抜ける
+                        break
+                    except Exception as e:
+                        logger.error(f"セグメント {i} の文字起こし中にエラー: {str(e)}")
+                        if attempt < max_retries:
+                            logger.warning(f"再試行します ({attempt+1}/{max_retries})")
+                        else:
+                            logger.error(f"最大再試行回数に達しました。このセグメントをスキップします。")
+                            self.has_reached_max_retries = True  # エラー表示のためのフラグ
+                            segment_text = ""
                 
                 if not segment_text:
                     logger.warning(f"セグメント {i} の文字起こし結果が空です")
@@ -481,4 +568,42 @@ class TranscriptionService:
         """出力ファイルパスの生成"""
         if timestamp is None:
             timestamp = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-        return self.output_dir / f"transcription_summary_{timestamp}.txt" 
+        return self.output_dir / f"transcription_summary_{timestamp}.txt"
+
+    def is_problematic_transcription(self, text):
+        """
+        指定されたテキストが問題のあるパターンを含むかどうかを判断します
+       
+        Args:
+            text (str): チェックする文字起こしテキスト
+           
+        Returns:
+            bool: 問題がある場合はTrue、それ以外はFalse
+        """
+        if not text:
+            return False
+           
+        # "Take minutes of the meeting"を含むかチェック
+        if "Take minutes of the meeting" in text:
+            logger.warning("問題パターン検出: 'Take minutes of the meeting'")
+            return True
+           
+        # 単語の繰り返しをチェック（日本語・英語両方対応）
+        words = text.split()
+        
+        # 繰り返しパターンのチェック（シンプルな方法）
+        for i in range(len(words)):
+            word = words[i]
+            count = 1
+            # 同じ単語が連続しているかをカウント
+            for j in range(i+1, len(words)):
+                if words[j] == word:
+                    count += 1
+                else:
+                    break
+                    
+            if count >= 20:
+                logger.warning(f"問題パターン検出: 単語 '{word}' が {count} 回繰り返されています")
+                return True
+        
+        return False 
