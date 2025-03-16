@@ -89,10 +89,10 @@ Input example:
 Expected output:
 ```json
 {
-  "Male_seg1": "Tanaka",
-  "Female_seg1": "Sato",
-  "Male_seg2": "Tanaka",
-  "Female_seg2": "Sato"
+  "Male3_seg1": "星野咲",
+  "Female1_seg1": "雪川",
+  "Male_seg2": "星野咲",
+  "Female_seg2": "雪川"
 }
 ```
 
