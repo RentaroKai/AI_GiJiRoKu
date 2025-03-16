@@ -606,14 +606,20 @@ class TranscriptionService:
 
         # まず "utterance" フィールドを抽出して個別にチェック
         try:
-            utterance_patterns = re.findall(r'"utterance"\s*:\s*"([^"]+)"', text)
+            # 修正された正規表現パターン - より柔軟に「utterance」フィールドを抽出
+            utterance_patterns = re.findall(r'"utterance"\s*:\s*"((?:[^"\\]|\\.)*)(?:"|$)', text)
 
-            # 抽出成功した場合は各utteranceをチェック
+            # 抽出の結果をデバッグログに出力
             if utterance_patterns:
                 logger.info(f"{len(utterance_patterns)}個の発言を抽出してチェックします")
-                for utterance in utterance_patterns:
-                    if self._check_single_utterance_repetition(utterance):
-                        return True
+                logger.debug(f"抽出された発言の先頭50文字: {[u[:50] + '...' for u in utterance_patterns]}")
+            else:
+                logger.warning(f"発言パターンが抽出できませんでした。テキストサンプル: {text[:200]}...")
+
+            # 発言チェック処理（変更なし）
+            for utterance in utterance_patterns:
+                if self._check_single_utterance_repetition(utterance):
+                    return True
         except Exception as e:
             # 正規表現抽出でエラーが発生した場合はログに記録
             logger.warning(f"発言抽出中にエラーが発生しました: {str(e)}")
@@ -655,65 +661,24 @@ class TranscriptionService:
 
     def _check_whole_text_repetition(self, text):
         """
-        テキスト全体での繰り返しをチェック（既存のロジックを移行）
-
-        Args:
-            text (str): チェックする文字起こしテキスト
-
-        Returns:
-            bool: 問題がある場合はTrue、それ以外はFalse
+        テキスト全体での繰り返しをチェック
         """
         logger.debug(f"テキスト全体の繰り返しをチェック: {text[:200]}...")
 
-        # 方法1: 単語の繰り返しをチェック（日本語・英語両方対応）
-        words = text.split()
+        # フォールバックチェック: 繰り返しフレーズを直接検索
+        problem_phrases = ["うん。", "はい。", "ええ。", "あの。", "えー。"]
+        for phrase in problem_phrases:
+            # 長さ3以上のフレーズだけチェック（短すぎるとヒット率が高くなりすぎる）
+            if len(phrase) >= 2:
+                consecutive_pattern = phrase * 70  # 70回連続の繰り返しパターン
+                if consecutive_pattern in text:
+                    logger.warning(f"問題パターン検出: フレーズ '{phrase}' が大量に連続して出現しています")
+                    return True
 
-        # 繰り返しパターンのチェック（シンプルな方法）
-        for i in range(len(words)):
-            word = words[i]
-            # 話者名（「話者1:」など）は繰り返しチェックから除外
-            if re.match(r'(話者\d+[_\w]*|スピーカー\d+[_\w]*|Speaker\s*\d+[_\w]*)\s*:', word):
-                continue
-
-            count = 1
-            # 同じ単語が連続しているかをカウント
-            for j in range(i+1, len(words)):
-                if words[j] == word:
-                    count += 1
-                else:
-                    break
-
-            if count >= 200:
-                logger.warning(f"問題パターン検出: 単語 '{word}' が {count} 回繰り返されています")
-                return True
-
-        # 方法2: フレーズの繰り返しをチェック（句読点を含む）
-        short_phrases = re.findall(r'(.{1,5}[。、．，!！?？\s]+)', text)
-        phrase_counts = {}
-
-        for phrase in short_phrases:
-            phrase = phrase.strip()
-
-            # 単一の記号や括弧のみのフレーズは除外
-            if not phrase or re.match(r'^[{}\[\]()<>「」『』【】\'\"]+$', phrase):
-                continue
-
-            # 話者名を含むフレーズは除外
-            if re.search(r'(話者\d+[_\w]*|スピーカー\d+[_\w]*|Speaker\s*\d+[_\w]*)\s*:', phrase):
-                continue
-
-            if phrase:
-                if phrase in phrase_counts:
-                    phrase_counts[phrase] += 1
-                else:
-                    phrase_counts[phrase] = 1
-
-        # 同じフレーズが大量に繰り返されているかチェック
-        for phrase, count in phrase_counts.items():
-            if count >= 200:
-                logger.warning(f"問題パターン検出: フレーズ '{phrase}' が {count} 回繰り返されています")
-                return True
-
-        # 方法3: N-gramパターンチェックは処理コストが高いため省略（発言単位チェックで対応可能）
+                # 出現回数も数える
+                count = text.count(phrase)
+                if count >= 200:
+                    logger.warning(f"問題パターン検出: フレーズ '{phrase}' が全体で {count} 回出現しています")
+                    return True
 
         return False
