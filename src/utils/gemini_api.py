@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 # デフォルトのモデル設定
 DEFAULT_TRANSCRIPTION_MODEL = "gemini-2.0-flash"  # 書き起こし用のデフォルトモデル
-DEFAULT_MINUTES_MODEL = "gemini-2.0-pro-exp-02-05"  # 議事録まとめ用のデフォルトモデル
+DEFAULT_MINUTES_MODEL = "gemini-2.0-flash-thinking-exp-01-21"  # 議事録まとめ用のデフォルトモデル
 DEFAULT_TITLE_MODEL = "gemini-2.0-flash"  # タイトル生成用のデフォルトモデル
 
 class TranscriptionError(Exception):

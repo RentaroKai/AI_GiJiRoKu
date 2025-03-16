@@ -1,21 +1,116 @@
-これらは議事録のファイルです。全体の話の流れを確認し、話者(speaker)を推測し、話者名の変換マップをJSON形式で出力してください：
-# マッピング例:
-- 「話し手1」→「山谷」
-- 「人物A」→「星山」
+# Meeting Transcript Speaker Mapping Processor (Algorithm Version)
 
-# 同じ実在人物が複数の異なる話者表記で登場することがあります。
-例えば「話し手1」も「人物A」も同じ「山谷」さんである可能性があります
-会話の文脈から同一人物だと判断できる場合は、同じ名前にマッピングしてください
-# 話者の名前がわからなかった場合は、不明やunknownとはせずに、識別できる名前にすること
+This is a prompt for creating a mapping from speaker identifiers to actual speaker names in meeting transcripts.
+Please follow the algorithm below to create an accurate JSON format mapping.
 
-# フォーマット：
+## Basic Rules
 
+1. Speaker identifiers may include basic identifiers such as "Speaker A" or "Male1" and segment information like "_seg1"
+2. Different speakers within the same segment (e.g., "Male_seg1" and "Female_seg1") are always different people
+3. The same type of speaker across different segments (e.g., "Male_seg1" and "Male_seg2") should be considered the same person
+4. Check the end of the transcript for actual participant names, as they are often mentioned there
+
+## Japanese-Specific Speaker Identification Rules
+
+1. Pay attention to self-reference and reference to others:
+   - When referring to oneself, Japanese speakers often use just their surname or name without honorifics (e.g., "Yamoka", "Tanaka")
+   - When referring to others, honorifics are usually added (e.g., "Ruta-san", "Yamada-san", "Suzuki-shi")
+
+2. Pay special attention to final statements (summaries or closing remarks):
+   - In formats like "This was a conversation between XX and YY", the speaker typically refers to themselves as XX and the other person as YY
+
+## Processing Algorithm
+def create_speaker_mapping(transcript):
+    # Step 1: Extract speaker identifiers
+    speaker_list = extract all "speaker" field values from the transcript
+
+    # Step 2: Detect segment patterns
+    segment_pattern = detect pattern "_seg\d+" using regular expression
+
+    # Step 3: Extract basic identifiers
+    basic_identifier_map = {}
+    for each_speaker in speaker_list:
+        if contains segment_pattern:
+            basic_part = remove segment information (e.g., "Male_seg1" → "Male")
+            basic_identifier_map[each_speaker] = basic_part
+        else:
+            basic_identifier_map[each_speaker] = each_speaker
+
+    # Step 4: Identify same speakers
+    same_speaker_groups = {}
+    
+    # まず、セグメントパターンを抽出
+    for each_speaker in speaker_list:
+        segment_id = extract segment information (e.g., "seg1" from "Male_seg1")
+        basic_id = basic_identifier_map[each_speaker]
+        
+        # 同じセグメント内での話者の区別を保存
+        if segment_id not in segment_speaker_map:
+            segment_speaker_map[segment_id] = {}
+        segment_speaker_map[segment_id][basic_id] = each_speaker
+    
+    # 同じ基本識別子を持つ話者を同じグループにする
+    # ただし、同じセグメント内の異なる基本識別子は別グループにする
+
+    # Step 5: Search for real names and apply Japanese speaker identification
+    real_name_list = extract participant real names from the end or content of the transcript
+
+    # Pay special attention to patterns like "This was a conversation between XX and YY"
+    # XX is likely self-reference (the speaker) and YY is likely reference to others
+
+    # Step 6: Map speaker groups to real names
+    final_mapping = {}
+    for each_group in same_speaker_groups:
+        appropriate_name = select the most appropriate name from real_name_list
+        # Apply Japanese self-reference/other-reference rules for selection
+        for each_speaker in each_group:
+            final_mapping[each_speaker] = appropriate_name
+
+    # Step 7: Handle cases where real names are unknown
+    for each_speaker in speaker_list:
+        if each_speaker not in final_mapping:
+            final_mapping[each_speaker] = identifiable name based on role or characteristics
+
+    return final_mapping
+
+## Example
+
+Input example:
+```json
+{ "conversations": [
+  { "speaker": "Male_seg1", "utterance": "Hello" },
+  { "speaker": "Female_seg1", "utterance": "Good work today" },
+  { "speaker": "Male_seg2", "utterance": "I'll report" },
+  { "speaker": "Female_seg2", "utterance": "Understood" },
+  { "speaker": "Male_seg2", "utterance": "This was a conversation between Tanaka and Sato-san" }
+]}
+```
+
+Expected output:
 ```json
 {
-  "話し手1": "山谷",
-  "人物A": "山谷",
-  "人物B": "話者A",
+  "Male_seg1": "Tanaka",
+  "Female_seg1": "Sato",
+  "Male_seg2": "Tanaka",
+  "Female_seg2": "Sato"
 }
 ```
 
-このマッピングJSONは後続の処理でファイル変換に使用されます。
+## Important Points
+
+1. People who are only mentioned in conversations (e.g., "Yamada-bucho" in "I'll check with Yamada-bucho") are not speakers
+2. The same type of speaker across different segments (Male_seg1 and Male_seg2, etc.) should always be treated as the same person
+3. If there's a description like "This was a conversation between XX and YY" at the end, please use it as a priority
+   - Note that in this case, XX is likely the speaker themselves and YY is likely the other person
+4. If the real name cannot be identified, use a role-based name instead of "unknown"
+
+## Output Format
+
+```json
+{
+  "speaker_identifier1": "real_name1",
+  "speaker_identifier2": "real_name2"
+}
+```
+
+This mapping JSON will be used for file conversion in subsequent processing.
