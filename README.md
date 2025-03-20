@@ -1,6 +1,10 @@
+
+![img](setumei.png)
+
 # AI議事録作成アプリ（GiJiRoKu）
 
 会議や講演の音声/動画ファイルから自動的に議事録を作成するAI議事録君です
+(EN:Meeting Minutes App)
 
 ## 🌟 主な機能
 
