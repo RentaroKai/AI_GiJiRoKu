@@ -124,7 +124,7 @@ class AudioSplitter:
         """
         # 無音検出のパラメータ
         min_silence_len = 500  # 最小無音長（ミリ秒）
-        silence_thresh = -40   # 無音判定閾値（dB）
+        silence_thresh = -30   # -40dBから-30dBに変更（より大きな音も「無音」と判定）
         margin_seconds = 10    # 目標時間の前後にどれだけ余裕を持たせるか（秒）- 5秒から10秒に拡大
         margin_ms = margin_seconds * 1000
         
@@ -145,17 +145,26 @@ class AudioSplitter:
         # 探索範囲の音声を抽出
         search_segment = audio[search_start:search_end]
         
-        # 無音区間を検出
-        silence_ranges = detect_silence(
-            search_segment, 
-            min_silence_len=min_silence_len, 
-            silence_thresh=silence_thresh
-        )
+        # まず厳しい閾値で検索し、見つからなければ徐々に寛容な閾値で再検索
+        thresholds = [-40, -35, -30, -25]
+        for thresh in thresholds:
+            silence_ranges = detect_silence(search_segment, min_silence_len=min_silence_len, silence_thresh=thresh)
+            if silence_ranges:
+                break
         
-        # 適切な無音区間がなければ目標位置で分割
+        # デバッグ用に検出された無音区間の情報を詳細に出力
+        if silence_ranges:
+            logger.debug(f"検出された無音区間: {len(silence_ranges)}個")
+            for i, (start, end) in enumerate(silence_ranges):
+                logger.debug(f"  無音区間 {i+1}: {start/1000:.2f}秒 - {end/1000:.2f}秒 (長さ: {(end-start)/1000:.2f}秒)")
+        
+        # 無音区間が見つからない場合は音量が最も小さい位置を探索
         if not silence_ranges:
-            logger.info(f"{target_ms/1000:.2f}秒付近に無音区間が見つからないため、{target_ms/1000:.2f}秒で分割します")
-            return target_ms
+            logger.info(f"{target_ms/1000:.2f}秒付近に無音区間が見つかりません。音量が最小の位置を探索します...")
+            min_volume_position = self._find_min_volume_position(search_segment)
+            actual_split_point = search_start + min_volume_position
+            logger.info(f"最小音量位置で分割します: {actual_split_point/1000:.2f}秒")
+            return actual_split_point
         
         # 目標位置に最も近い無音区間を選択
         best_position = self._select_best_silence(silence_ranges, target_ms - search_start)
