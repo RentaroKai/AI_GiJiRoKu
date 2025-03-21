@@ -32,13 +32,27 @@ class SummarizerFactory:
             # 設定ファイルの取得（config_managerによるパス解決・PyInstaller対応）
             try:
                 config = config_manager.get_config()
+                logger.debug(f"読み込まれた設定: {config}")
+                logger.debug(f"設定のすべての属性: {dir(config)}")
+                
+                # summarization属性の有無を確認
+                has_summarization = hasattr(config, 'summarization')
+                logger.debug(f"summarization属性があるか: {has_summarization}")
+                
+                # 代替として直接設定ファイルの内容を確認
+                config_file = config_manager.config_file
+                if config_file.exists():
+                    with open(config_file, "r", encoding="utf-8") as f:
+                        raw_config = json.load(f)
+                        logger.debug(f"設定ファイルの生データ: {raw_config}")
+                        logger.debug(f"summarizationセクションの内容: {raw_config.get('summarization', 'なし')}")
             except Exception as e:
                 logger.warning(f"設定ファイルの読み込みに失敗しました: {str(e)}")
                 logger.info("デフォルトのGeminiSummarizerを使用します")
                 return GeminiSummarizer()
 
             # 議事録生成モデルの取得（デフォルトはGemini）
-            model = config.transcription.method
+            model = config.summarization.model
             logger.info(f"議事録生成モデル: {model}")
 
             # モデルに応じたSummarizerインスタンスを生成

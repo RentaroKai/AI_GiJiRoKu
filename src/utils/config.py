@@ -23,6 +23,10 @@ class TranscriptionConfig(BaseModel):
     segment_length_seconds: int = 450
     enable_speaker_remapping: bool = True  # 話者置換処理を有効にするかどうか
 
+class SummarizationConfig(BaseModel):
+    """議事録生成設定モデル"""
+    model: str = "gemini"  # デフォルト値はGemini
+
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""
     openai_api_key: Optional[str] = None
@@ -34,6 +38,7 @@ class AppConfig(BaseModel):
     max_audio_size_mb: int = 1024  # 1GB
     temp_file_retention_hours: int = 24
     transcription: TranscriptionConfig = TranscriptionConfig()
+    summarization: SummarizationConfig = SummarizationConfig()
 
     class Config:
         arbitrary_types_allowed = True
@@ -114,6 +119,15 @@ class ConfigManager:
                 else:
                     logger.warning("Invalid transcription configuration format")
                 del config_dict["transcription"]
+
+            # 議事録生成設定の特別処理
+            if "summarization" in config_dict:
+                summarization_config = config_dict["summarization"]
+                if isinstance(summarization_config, dict):
+                    self.config.summarization = SummarizationConfig(**summarization_config)
+                else:
+                    logger.warning("Invalid summarization configuration format")
+                del config_dict["summarization"]
 
             # その他の設定を更新
             for key, value in config_dict.items():
