@@ -1,4 +1,4 @@
-openai
+openai>=1.68.0
 pydantic>=2.6.1
 pydub>=0.25.1
 pyperclip>=1.8.2
