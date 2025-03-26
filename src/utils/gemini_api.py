@@ -12,8 +12,8 @@ from ..utils.config import config_manager
 logger = logging.getLogger(__name__)
 
 # デフォルトのモデル設定
-DEFAULT_TRANSCRIPTION_MODEL = "gemini-2.0-flash"  # 書き起こし用のデフォルトモデル
-DEFAULT_MINUTES_MODEL = "gemini-2.0-flash-thinking-exp-01-21"  # 議事録まとめ用のデフォルトモデル
+DEFAULT_TRANSCRIPTION_MODEL = "gemini-2.5-pro-exp-03-25"  # 書き起こし用のデフォルトモデル
+DEFAULT_MINUTES_MODEL = "gemini-2.5-pro-exp-03-25"  # 議事録まとめ用のデフォルトモデル
 DEFAULT_TITLE_MODEL = "gemini-2.0-flash"  # タイトル生成用のデフォルトモデル
 
 class TranscriptionError(Exception):
