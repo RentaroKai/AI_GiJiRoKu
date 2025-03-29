@@ -260,26 +260,25 @@ class SettingsDialog(tk.Toplevel):
         self.lift()
         self.grab_set()  # モーダルダイアログとして設定
 
-        # 設定の読み込み
-        self.config = self._load_config()
-        self.openai_api_key = self.config.get("openai_api_key", "")
-        self.gemini_api_key = self.config.get("gemini_api_key", "")
-        self.transcription_method = self.config.get("transcription", {}).get("method", "gemini")
-        self.summarization_model = self.config.get("summarization", {}).get("model", "gemini")
-        self.segment_length = self.config.get("transcription", {}).get("segment_length_seconds", 300)
-        self.enable_speaker_remapping = self.config.get("transcription", {}).get("enable_speaker_remapping", True)
-        self.output_dir = self.config.get("output", {}).get("default_dir", os.path.expanduser("~/Documents/議事録"))
-
-        # モデル設定の読み込み (デフォルト値も指定)
-        models_config = self.config.get("models", {})
-        self.gemini_transcription_model = models_config.get("gemini_transcription", "gemini-2.5-pro-exp-03-25")
-        self.gemini_minutes_model = models_config.get("gemini_minutes", "gemini-2.5-pro-exp-03-25")
-        self.gemini_title_model = models_config.get("gemini_title", "gemini-2.0-flash")
-        self.openai_chat_model = models_config.get("openai_chat", "o3-mini-2025-01-31")
-        self.openai_st_model = models_config.get("openai_st", "gpt-4o")
-        self.openai_sttitle_model = models_config.get("openai_sttitle", "gpt-4o-mini")
-        self.openai_audio_model = models_config.get("openai_audio", "gpt-4o-mini-transcribe")
-        self.openai_4oaudio_model = models_config.get("openai_4oaudio", "gpt-4o-audio-preview")
+        # 設定の読み込み (変更後)
+        app_config = config_manager.get_config()
+        self.openai_api_key = app_config.openai_api_key or ""
+        self.gemini_api_key = app_config.gemini_api_key or ""
+        self.transcription_method = app_config.transcription.method
+        self.summarization_model = app_config.summarization.model
+        self.segment_length = app_config.transcription.segment_length_seconds
+        self.enable_speaker_remapping = app_config.transcription.enable_speaker_remapping
+        self.output_dir = app_config.output.default_dir
+        
+        # モデル設定の読み込み
+        self.gemini_transcription_model = app_config.models.gemini_transcription
+        self.gemini_minutes_model = app_config.models.gemini_minutes
+        self.gemini_title_model = app_config.models.gemini_title
+        self.openai_chat_model = app_config.models.openai_chat
+        self.openai_st_model = app_config.models.openai_st
+        self.openai_sttitle_model = app_config.models.openai_sttitle
+        self.openai_audio_model = app_config.models.openai_audio
+        self.openai_4oaudio_model = app_config.models.openai_4oaudio
 
         # プロンプトの読み込み
         self.minutes_prompt = prompt_manager.get_prompt("minutes")
@@ -523,68 +522,94 @@ class SettingsDialog(tk.Toplevel):
     def _save_settings(self):
         """設定の保存"""
         try:
+            # 変更前のコード:
             # 統一されたパス解決ユーティリティを使用
-            config_file = get_config_file_path()
-            logger.info(f"設定を保存します: {config_file.absolute()}")
+            # config_file = get_config_file_path()
+            # logger.info(f"設定を保存します: {config_file.absolute()}")
             
             # 設定ファイルの読み込み
-            try:
-                if config_file.exists():
-                    with open(config_file, "r", encoding="utf-8") as f:
-                        config = json.load(f)
-                else:
-                    config = {}
-            except (FileNotFoundError, json.JSONDecodeError):
-                config = {}
+            # try:
+            #     if config_file.exists():
+            #         with open(config_file, "r", encoding="utf-8") as f:
+            #             config = json.load(f)
+            #     else:
+            #         config = {}
+            # except (FileNotFoundError, json.JSONDecodeError):
+            #     config = {}
 
             # 既存の設定を保持しながら新しい設定を更新
-            config.update({
-                "openai_api_key": self.api_key_var.get(),
-                "gemini_api_key": self.gemini_api_key_var.get(),
-                "output": {
-                    "default_dir": self.output_dir_var.get()
-                },                
-                "transcription": {
-                    "method": self.transcription_var.get(),
-                    "segment_length_seconds": int(self.segment_length_var.get()),
-                    "enable_speaker_remapping": self.enable_speaker_remapping_var.get()
-                },
-                "summarization": {
-                    "model": self.summarization_var.get()
-                },
-            })
+            # config.update({
+            #     "openai_api_key": self.api_key_var.get(),
+            #     "gemini_api_key": self.gemini_api_key_var.get(),
+            #     "output": {
+            #         "default_dir": self.output_dir_var.get()
+            #     },                
+            #     "transcription": {
+            #         "method": self.transcription_var.get(),
+            #         "segment_length_seconds": int(self.segment_length_var.get()),
+            #         "enable_speaker_remapping": self.enable_speaker_remapping_var.get()
+            #     },
+            #     "summarization": {
+            #         "model": self.summarization_var.get()
+            #     },
+            # })
             
-            # モデル設定を取得
-            models_settings = {
-                "gemini_transcription": self.gemini_transcription_model_var.get(),
-                "gemini_minutes": self.gemini_minutes_model_var.get(),
-                "gemini_title": self.gemini_title_model_var.get(),
-                "openai_chat": self.openai_chat_model_var.get(),
-                "openai_st": self.openai_st_model_var.get(),
-                "openai_sttitle": self.openai_sttitle_model_var.get(),
-                "openai_audio": self.openai_audio_model_var.get(),
-                "openai_4oaudio": self.openai_4oaudio_model_var.get(),
-            }
+            # # モデル設定を取得
+            # models_settings = {
+            #     "gemini_transcription": self.gemini_transcription_model_var.get(),
+            #     "gemini_minutes": self.gemini_minutes_model_var.get(),
+            #     "gemini_title": self.gemini_title_model_var.get(),
+            #     "openai_chat": self.openai_chat_model_var.get(),
+            #     "openai_st": self.openai_st_model_var.get(),
+            #     "openai_sttitle": self.openai_sttitle_model_var.get(),
+            #     "openai_audio": self.openai_audio_model_var.get(),
+            #     "openai_4oaudio": self.openai_4oaudio_model_var.get(),
+            # }
 
-            # 既存のconfigに "models" キーを追加または更新
-            if "models" in config:
-                 # modelsが存在する場合、キーが存在すれば更新、存在しなければ追加
-                 for key, value in models_settings.items():
-                      config["models"][key] = value
-                 # settings.jsonにないモデルキーがModelsConfigに追加された場合に対応
-                 for key in ModelsConfig().dict().keys(): # ModelsConfigから全てのキーを取得
-                      if key not in config["models"]:
-                           config["models"][key] = models_settings.get(key, getattr(ModelsConfig(), key))
-            else:
-                 config["models"] = models_settings
+            # # 既存のconfigに "models" キーを追加または更新
+            # if "models" in config:
+            #      # modelsが存在する場合、キーが存在すれば更新、存在しなければ追加
+            #      for key, value in models_settings.items():
+            #           config["models"][key] = value
+            #      # settings.jsonにないモデルキーがModelsConfigに追加された場合に対応
+            #      for key in ModelsConfig().dict().keys(): # ModelsConfigから全てのキーを取得
+            #           if key not in config["models"]:
+            #                config["models"][key] = models_settings.get(key, getattr(ModelsConfig(), key))
+            # else:
+            #      config["models"] = models_settings
 
             # 既存の設定を保持しながら新しい設定を更新 (modelsセクション以外)
-            config.update({
+            # config.update({
+            #     "openai_api_key": self.api_key_var.get(),
+            #     "gemini_api_key": self.gemini_api_key_var.get(),
+            #     "output": {
+            #         "default_dir": self.output_dir_var.get()
+            #     },                
+            #     "transcription": {
+            #         "method": self.transcription_var.get(),
+            #         "segment_length_seconds": int(self.segment_length_var.get()),
+            #         "enable_speaker_remapping": self.enable_speaker_remapping_var.get()
+            #     },
+            #     "summarization": {
+            #         "model": self.summarization_var.get()
+            #     },
+            # })
+            
+            # # 設定ディレクトリが存在しない場合は作成
+            # config_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # # 設定を保存
+            # with open(config_file, "w", encoding="utf-8") as f:
+            #     json.dump(config, f, indent=4, ensure_ascii=False)
+            
+            # 変更後のコード:
+            # UI要素から設定値を取得
+            config_dict = {
                 "openai_api_key": self.api_key_var.get(),
                 "gemini_api_key": self.gemini_api_key_var.get(),
                 "output": {
                     "default_dir": self.output_dir_var.get()
-                },                
+                },
                 "transcription": {
                     "method": self.transcription_var.get(),
                     "segment_length_seconds": int(self.segment_length_var.get()),
@@ -593,36 +618,34 @@ class SettingsDialog(tk.Toplevel):
                 "summarization": {
                     "model": self.summarization_var.get()
                 },
-            })
+                "models": {
+                    "gemini_transcription": self.gemini_transcription_model_var.get(),
+                    "gemini_minutes": self.gemini_minutes_model_var.get(),
+                    "gemini_title": self.gemini_title_model_var.get(),
+                    "openai_chat": self.openai_chat_model_var.get(),
+                    "openai_st": self.openai_st_model_var.get(),
+                    "openai_sttitle": self.openai_sttitle_model_var.get(),
+                    "openai_audio": self.openai_audio_model_var.get(),
+                    "openai_4oaudio": self.openai_4oaudio_model_var.get(),
+                }
+            }
             
-            # 設定ディレクトリが存在しない場合は作成
-            config_file.parent.mkdir(parents=True, exist_ok=True)
+            # ConfigManagerを使用して設定を更新
+            logger.info("ConfigManagerを使用して設定を更新します")
+            config_manager.update_config(config_dict)
+            logger.info("設定の更新が完了しました")
             
-            # 設定を保存
-            with open(config_file, "w", encoding="utf-8") as f:
-                json.dump(config, f, indent=4, ensure_ascii=False)
-            
-            # プロンプトの保存
+            # プロンプトの保存 (現状維持)
             minutes_prompt_text = self.minutes_prompt_text.get(1.0, tk.END).strip()
             prompt_manager.save_custom_prompt("minutes", minutes_prompt_text)
             
             self.destroy()
             messagebox.showinfo("成功", "設定を保存しました")
             
+        except ConfigError as ce:
+            messagebox.showerror("設定エラー", f"設定の保存に失敗しました: {str(ce)}")
         except Exception as e:
             messagebox.showerror("エラー", f"設定の保存に失敗しました: {str(e)}")
-
-    def _load_config(self):
-        """設定の読み込み"""
-        try:
-            # 統一されたパス解決ユーティリティを使用
-            config_file = get_config_file_path()
-            if config_file.exists():
-                with open(config_file, "r", encoding="utf-8") as f:
-                    return json.load(f)
-            return {}
-        except (FileNotFoundError, json.JSONDecodeError):
-            return {} 
 
     def _toggle_models_panel(self):
         """モデル設定パネルの表示/非表示を切り替える"""
