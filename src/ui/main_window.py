@@ -22,7 +22,7 @@ class MainWindow:
     def __init__(self, root: tk.Tk):
         self.root = root
         self.root.title("GiJiRoKu - 音声文字起こしツール")
-        self.root.geometry("600x400")
+        self.root.geometry("500x240")
         
         # サービスの初期化
         self.audio_processor = None  # 遅延初期化
