@@ -3,7 +3,7 @@ import json
 import logging
 from pathlib import Path
 from typing import Dict, Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import sys
 from .path_resolver import get_config_file_path
 
@@ -27,6 +27,17 @@ class SummarizationConfig(BaseModel):
     """議事録生成設定モデル"""
     model: str = "gemini"  # デフォルト値はGemini
 
+class ModelsConfig(BaseModel):
+    """AIモデル名設定モデル"""
+    gemini_transcription: str = "gemini-2.5-pro-exp-03-25"
+    gemini_minutes: str = "gemini-2.5-pro-exp-03-25"
+    gemini_title: str = "gemini-2.0-flash"
+    openai_chat: str = "o3-mini-2025-01-31"
+    openai_st: str = "gpt-4o"
+    openai_sttitle: str = "gpt-4o-mini"
+    openai_audio: str = "gpt-4o-mini-transcribe"
+    openai_4oaudio: str = "gpt-4o-audio-preview"
+
 class AppConfig(BaseModel):
     """アプリケーション設定モデル"""
     openai_api_key: Optional[str] = None
@@ -39,6 +50,7 @@ class AppConfig(BaseModel):
     temp_file_retention_hours: int = 24
     transcription: TranscriptionConfig = TranscriptionConfig()
     summarization: SummarizationConfig = SummarizationConfig()
+    models: ModelsConfig = ModelsConfig()
 
     class Config:
         arbitrary_types_allowed = True
@@ -129,6 +141,18 @@ class ConfigManager:
                     logger.warning("Invalid summarization configuration format")
                 del config_dict["summarization"]
 
+            # モデル設定の特別処理
+            if "models" in config_dict:
+                models_config_data = config_dict["models"]
+                if isinstance(models_config_data, dict):
+                    # 既存のモデル設定を読み込み、新しいデータで上書き
+                    current_models_dict = self.config.models.dict()
+                    current_models_dict.update(models_config_data)
+                    self.config.models = ModelsConfig(**current_models_dict)
+                else:
+                    logger.warning("Invalid models configuration format")
+                del config_dict["models"]
+
             # その他の設定を更新
             for key, value in config_dict.items():
                 if hasattr(self.config, key):
@@ -145,6 +169,26 @@ class ConfigManager:
     def get_config(self) -> AppConfig:
         """現在の設定を取得"""
         return self.config
+
+    def get_model(self, model_type: str) -> str:
+        """指定されたタイプのAIモデル名を取得する"""
+        try:
+            model_name = getattr(self.config.models, model_type, None)
+            if model_name is None:
+                # ModelsConfigのデフォルト値を使うため、エラーではなく警告ログに留める
+                logger.warning(f"指定されたモデルタイプが見つかりません: {model_type}。ModelsConfigのデフォルト値を使用します。")
+                # デフォルト値を取得するために再度getattrする（あるいはModelsConfigのデフォルトを直接参照）
+                default_model_name = getattr(ModelsConfig(), model_type, "") # デフォルト取得失敗時は空文字
+                if not default_model_name:
+                     logger.error(f"ModelsConfigにもデフォルト値が見つかりません: {model_type}")
+                return default_model_name
+            return model_name
+        except AttributeError:
+            logger.error(f"'models' 設定オブジェクトが存在しません。デフォルト設定を確認してください。")
+            return "" # エラー時は空文字を返すなど、適切なエラー処理を行う
+        except Exception as e:
+            logger.error(f"モデル名の取得中に予期せぬエラーが発生しました ({model_type}): {str(e)}")
+            return "" # エラー時は空文字を返す
 
     def reset_to_defaults(self) -> None:
         """設定をデフォルトに戻す"""

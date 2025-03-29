@@ -4,17 +4,22 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 import httplib2
 import json
+import time
 
 import google.generativeai as genai
 from google.ai.generativelanguage_v1beta.types import content
 from ..utils.config import config_manager
+# from ..services.result_classes import TranscriptionResult, Segment # ModuleNotFoundErrorのためコメントアウト
 
 logger = logging.getLogger(__name__)
 
 # デフォルトのモデル設定
-DEFAULT_TRANSCRIPTION_MODEL = "gemini-2.5-pro-exp-03-25"  # 書き起こし用のデフォルトモデル
-DEFAULT_MINUTES_MODEL = "gemini-2.5-pro-exp-03-25"  # 議事録まとめ用のデフォルトモデル
-DEFAULT_TITLE_MODEL = "gemini-2.0-flash"  # タイトル生成用のデフォルトモデル
+DEFAULT_TRANSCRIPTION_MODEL = config_manager.get_model("gemini_transcription")
+DEFAULT_MINUTES_MODEL = config_manager.get_model("gemini_minutes")
+DEFAULT_TITLE_MODEL = config_manager.get_model("gemini_title")
+
+MAX_RETRIES = 3
+RETRY_DELAY = 5  # 秒
 
 class TranscriptionError(Exception):
     """書き起こし処理中のエラーを表すカスタム例外"""

@@ -10,7 +10,7 @@ from ..services.audio import AudioProcessor, AudioProcessingError
 from ..services.transcription import TranscriptionService, TranscriptionError
 from ..services.csv_converter import CSVConverterService, CSVConversionError
 from ..services.file_organizer import FileOrganizer
-from ..utils.config import config_manager, ConfigError
+from ..utils.config import config_manager, ConfigError, ModelsConfig
 from ..utils.prompt_manager import prompt_manager
 from ..services.processor import process_audio_file
 from ..utils.path_resolver import get_config_file_path
@@ -253,7 +253,7 @@ class SettingsDialog(tk.Toplevel):
         super().__init__(parent)
         self.title("設定")
         self.resizable(True, True)  # リサイズ可能に変更
-        self.geometry("600x700")    # 高さを700pxに増やす
+        self.geometry("600x900")    # 高さを800pxに増やす
         
         # ウィンドウを親の上に表示
         self.transient(parent)
@@ -269,6 +269,17 @@ class SettingsDialog(tk.Toplevel):
         self.segment_length = self.config.get("transcription", {}).get("segment_length_seconds", 300)
         self.enable_speaker_remapping = self.config.get("transcription", {}).get("enable_speaker_remapping", True)
         self.output_dir = self.config.get("output", {}).get("default_dir", os.path.expanduser("~/Documents/議事録"))
+
+        # モデル設定の読み込み (デフォルト値も指定)
+        models_config = self.config.get("models", {})
+        self.gemini_transcription_model = models_config.get("gemini_transcription", "gemini-2.5-pro-exp-03-25")
+        self.gemini_minutes_model = models_config.get("gemini_minutes", "gemini-2.5-pro-exp-03-25")
+        self.gemini_title_model = models_config.get("gemini_title", "gemini-2.0-flash")
+        self.openai_chat_model = models_config.get("openai_chat", "o3-mini-2025-01-31")
+        self.openai_st_model = models_config.get("openai_st", "gpt-4o")
+        self.openai_sttitle_model = models_config.get("openai_sttitle", "gpt-4o-mini")
+        self.openai_audio_model = models_config.get("openai_audio", "gpt-4o-mini-transcribe")
+        self.openai_4oaudio_model = models_config.get("openai_4oaudio", "gpt-4o-audio-preview")
 
         # プロンプトの読み込み
         self.minutes_prompt = prompt_manager.get_prompt("minutes")
@@ -371,6 +382,39 @@ class SettingsDialog(tk.Toplevel):
             command=self._browse_output_dir
         )
 
+        # === モデル設定 ===
+        self.models_frame = ttk.LabelFrame(self.basic_tab, text="AIモデル名設定", padding=5)
+
+        # Tkinter StringVars for models
+        self.gemini_transcription_model_var = tk.StringVar(value=self.gemini_transcription_model)
+        self.gemini_minutes_model_var = tk.StringVar(value=self.gemini_minutes_model)
+        self.gemini_title_model_var = tk.StringVar(value=self.gemini_title_model)
+        self.openai_chat_model_var = tk.StringVar(value=self.openai_chat_model)
+        self.openai_st_model_var = tk.StringVar(value=self.openai_st_model)
+        self.openai_sttitle_model_var = tk.StringVar(value=self.openai_sttitle_model)
+        self.openai_audio_model_var = tk.StringVar(value=self.openai_audio_model)
+        self.openai_4oaudio_model_var = tk.StringVar(value=self.openai_4oaudio_model)
+
+        # Create labels and entries for each model
+        model_fields = [
+            ("Gemini 書き起こし:", self.gemini_transcription_model_var),
+            ("Gemini 議事録生成/話者推定:", self.gemini_minutes_model_var),
+            ("Gemini タイトル生成:", self.gemini_title_model_var),
+            ("OpenAI 議事録生成/話者推定:", self.openai_chat_model_var),
+            ("OpenAI 要約/構造化:", self.openai_st_model_var),
+            ("OpenAI タイトル生成:", self.openai_sttitle_model_var),
+            ("OpenAI 書き起こし(whisper):", self.openai_audio_model_var),
+            ("OpenAI 書き起こし(4o):", self.openai_4oaudio_model_var),
+        ]
+
+        for i, (label_text, var) in enumerate(model_fields):
+            label = ttk.Label(self.models_frame, text=label_text)
+            label.grid(row=i, column=0, padx=5, pady=2, sticky="w")
+            entry = ttk.Entry(self.models_frame, textvariable=var, width=40)
+            entry.grid(row=i, column=1, padx=5, pady=2, sticky="ew")
+
+        self.models_frame.columnconfigure(1, weight=1) # Entryが幅を広げるように設定
+
         # === プロンプト設定タブのウィジェット ===
         # 議事録プロンプト設定
         self.minutes_prompt_frame = ttk.LabelFrame(self.prompt_tab, text="議事録生成プロンプト", padding=5)
@@ -429,6 +473,9 @@ class SettingsDialog(tk.Toplevel):
         self.output_dir_entry.pack(side="left", fill="x", expand=True, padx=(5, 0))
         self.output_dir_button.pack(side="left", padx=5)
         
+        # モデル設定
+        self.models_frame.pack(fill="x", padx=5, pady=5)
+
         # === プロンプト設定タブのレイアウト ===
         # 議事録プロンプト
         self.minutes_prompt_frame.pack(fill="both", expand=True, padx=5, pady=5)
@@ -476,6 +523,47 @@ class SettingsDialog(tk.Toplevel):
                 config = {}
 
             # 既存の設定を保持しながら新しい設定を更新
+            config.update({
+                "openai_api_key": self.api_key_var.get(),
+                "gemini_api_key": self.gemini_api_key_var.get(),
+                "output": {
+                    "default_dir": self.output_dir_var.get()
+                },                
+                "transcription": {
+                    "method": self.transcription_var.get(),
+                    "segment_length_seconds": int(self.segment_length_var.get()),
+                    "enable_speaker_remapping": self.enable_speaker_remapping_var.get()
+                },
+                "summarization": {
+                    "model": self.summarization_var.get()
+                },
+            })
+            
+            # モデル設定を取得
+            models_settings = {
+                "gemini_transcription": self.gemini_transcription_model_var.get(),
+                "gemini_minutes": self.gemini_minutes_model_var.get(),
+                "gemini_title": self.gemini_title_model_var.get(),
+                "openai_chat": self.openai_chat_model_var.get(),
+                "openai_st": self.openai_st_model_var.get(),
+                "openai_sttitle": self.openai_sttitle_model_var.get(),
+                "openai_audio": self.openai_audio_model_var.get(),
+                "openai_4oaudio": self.openai_4oaudio_model_var.get(),
+            }
+
+            # 既存のconfigに "models" キーを追加または更新
+            if "models" in config:
+                 # modelsが存在する場合、キーが存在すれば更新、存在しなければ追加
+                 for key, value in models_settings.items():
+                      config["models"][key] = value
+                 # settings.jsonにないモデルキーがModelsConfigに追加された場合に対応
+                 for key in ModelsConfig().dict().keys(): # ModelsConfigから全てのキーを取得
+                      if key not in config["models"]:
+                           config["models"][key] = models_settings.get(key, getattr(ModelsConfig(), key))
+            else:
+                 config["models"] = models_settings
+
+            # 既存の設定を保持しながら新しい設定を更新 (modelsセクション以外)
             config.update({
                 "openai_api_key": self.api_key_var.get(),
                 "gemini_api_key": self.gemini_api_key_var.get(),

@@ -5,15 +5,17 @@ from typing import List, Dict, Any
 import logging
 from pathlib import Path
 from .config import config_manager
+import json
+from openai import OpenAI, APIConnectionError, RateLimitError, APIStatusError
 
 logger = logging.getLogger(__name__)
 
 # 定数定義
-DEFAULT_CHAT_MODEL = "o3-mini-2025-01-31"
-DEFAULT_ST_MODEL = "gpt-4o"
-DEFAULT_STTITLE_MODEL = "gpt-4o-mini"
-DEFAULT_AUDIO_MODEL = "gpt-4o-mini-transcribe"
-DEFAULT_4oAUDIO_MODEL = "gpt-4o-audio-preview"
+DEFAULT_CHAT_MODEL = config_manager.get_model("openai_chat")
+DEFAULT_ST_MODEL = config_manager.get_model("openai_st")
+DEFAULT_STTITLE_MODEL = config_manager.get_model("openai_sttitle")
+DEFAULT_AUDIO_MODEL = config_manager.get_model("openai_audio")
+DEFAULT_4oAUDIO_MODEL = config_manager.get_model("openai_4oaudio")
 DEFAULT_TEMPERATURE = 0.1
 DEFAULT_MAX_TOKENS = ""
 
@@ -302,7 +304,6 @@ def generate_meeting_title(transcript_text: str, temperature=DEFAULT_TEMPERATURE
     system_prompt = "会議の書き起こしからこの会議のメインとなる議題が何だったのかを教えて。例：取引先とカフェの方向性に関する会議"
     response = generate_structured_chat_response(system_prompt=system_prompt, user_message_content=transcript_text, json_schema=MEETING_TITLE_SCHEMA, temperature=temperature, model_name=model_name)
     try:
-        import json
         response_json = json.loads(response)
         meeting_title = response_json.get("title", "").strip()
         logger.info(f"Generated meeting title: {meeting_title}")
