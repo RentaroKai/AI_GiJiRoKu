@@ -253,7 +253,7 @@ class SettingsDialog(tk.Toplevel):
         super().__init__(parent)
         self.title("設定")
         self.resizable(True, True)  # リサイズ可能に変更
-        self.geometry("600x900")    # 高さを800pxに増やす
+        self.geometry("600x700")    # 高さを800pxに増やす
         
         # ウィンドウを親の上に表示
         self.transient(parent)
@@ -384,6 +384,21 @@ class SettingsDialog(tk.Toplevel):
 
         # === モデル設定 ===
         self.models_frame = ttk.LabelFrame(self.basic_tab, text="AIモデル名設定", padding=5)
+        
+        # 折りたたみ用のフレームとボタン
+        self.models_header_frame = ttk.Frame(self.models_frame)
+        self.models_header_frame.pack(fill="x", expand=True)
+        
+        self.models_toggle_button = ttk.Button(
+            self.models_header_frame,
+            text="▼ 詳細設定を表示",
+            command=self._toggle_models_panel
+        )
+        self.models_toggle_button.pack(anchor="w", padx=5, pady=2)
+        
+        # モデル設定用のコンテンツフレーム（初期状態は非表示）
+        self.models_content_frame = ttk.Frame(self.models_frame)
+        self.models_collapsed = True  # 初期状態は折りたたまれている
 
         # Tkinter StringVars for models
         self.gemini_transcription_model_var = tk.StringVar(value=self.gemini_transcription_model)
@@ -408,12 +423,12 @@ class SettingsDialog(tk.Toplevel):
         ]
 
         for i, (label_text, var) in enumerate(model_fields):
-            label = ttk.Label(self.models_frame, text=label_text)
+            label = ttk.Label(self.models_content_frame, text=label_text)
             label.grid(row=i, column=0, padx=5, pady=2, sticky="w")
-            entry = ttk.Entry(self.models_frame, textvariable=var, width=40)
+            entry = ttk.Entry(self.models_content_frame, textvariable=var, width=40)
             entry.grid(row=i, column=1, padx=5, pady=2, sticky="ew")
 
-        self.models_frame.columnconfigure(1, weight=1) # Entryが幅を広げるように設定
+        self.models_content_frame.columnconfigure(1, weight=1) # Entryが幅を広げるように設定
 
         # === プロンプト設定タブのウィジェット ===
         # 議事録プロンプト設定
@@ -608,3 +623,16 @@ class SettingsDialog(tk.Toplevel):
             return {}
         except (FileNotFoundError, json.JSONDecodeError):
             return {} 
+
+    def _toggle_models_panel(self):
+        """モデル設定パネルの表示/非表示を切り替える"""
+        if self.models_collapsed:
+            # 折りたたみを展開
+            self.models_content_frame.pack(fill="both", expand=True, padx=5, pady=5)
+            self.models_toggle_button.config(text="▲ 詳細設定を隠す")
+            self.models_collapsed = False
+        else:
+            # 折りたたむ
+            self.models_content_frame.pack_forget()
+            self.models_toggle_button.config(text="▼ 詳細設定を表示")
+            self.models_collapsed = True 
