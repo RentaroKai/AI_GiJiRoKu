@@ -98,10 +98,8 @@
 - `transcriptionGEMINI.txt`: 音声の書き起こし整形ルール（GEMINI方式）
 
 ### AIモデルの変更
-`src/utils/` ディレクトリ内の以下のファイルでAIモデルを変更できます：
-
-- `Common_OpenAIAPI.py`: OpenAIモデルの指定（`DEFAULT_CHAT_MODEL = "XXX"`）
-- `gemini_api.py`: Geminiモデルの指定（`model_name="XXX"`）や最大文字数の変更
+`settings.json`ファイルでAIモデルを変更できます：
+アプリ初回起動時に自動的に作成される設定ファイルを編集するか、アプリ内の設定画面から変更できます。
 
 ## 🔧 必要要件
 
