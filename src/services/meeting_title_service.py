@@ -107,9 +107,42 @@ class MeetingTitleService:
             # 3. ファイル読み込み
             transcript_text = self._read_transcript_file(transcript_file_path)
             
+            # --- 追加: 送信テキスト量の判定と準備 ---
+            marker = '"speaker":'
+            marker_count = transcript_text.count(marker)
+            text_for_title = transcript_text  # デフォルトは全文
+
+            if marker_count == 0:
+                print(f"[WARN] 発話者マーカー '{marker}' が見つかりませんでした。全文を送信します。")
+            elif marker_count > 15:
+                print(f"[INFO] 発話者マーカーの出現回数が {marker_count} 回 (>15) です。")
+                # 16回目のマーカーの位置を見つける
+                current_index = -1
+                found_count = 0
+                for i in range(16):
+                    current_index = transcript_text.find(marker, current_index + 1)
+                    if current_index == -1:
+                        # 16回見つかる前に終端に達した場合 (予期せぬケース)
+                        print(f"[WARN] 16回目の発話者マーカーが見つかりませんでした（{i+1}回目まで検出）。全文を使用します。")
+                        text_for_title = transcript_text # 念のため全文に戻す
+                        found_count = -1 # ループ脱出と後続処理のスキップフラグ
+                        break
+                    found_count = i + 1
+                
+                if found_count == 16: # 16回目が見つかった場合のみカット
+                    cutoff_index = current_index
+                    text_for_title = transcript_text[:cutoff_index]
+                    print(f"[INFO] 16回目の '{marker}' 以降を削除して送信します (切り詰め後 {len(text_for_title)} 文字)。")
+                # 16回目が見つからなかった場合 (found_count == -1) は、text_for_title は全文のまま
+            
+            else: # 1 <= marker_count <= 15 の場合
+                print(f"[INFO] 発話者マーカーの出現回数が {marker_count} 回 (<=15) のため、全文を使用します。")
+            # --- 追加ここまで ---
+            
             # 4. タイトル生成
             print("Generating meeting title...")
-            title = title_generator.generate_title(transcript_text)
+            # 修正: title_generator に渡すテキストを変更
+            title = title_generator.generate_title(text_for_title)
             
             # JSONとして解析できない場合は、テキストとして扱う
             try:
