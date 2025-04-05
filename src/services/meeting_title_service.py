@@ -114,29 +114,28 @@ class MeetingTitleService:
 
             if marker_count == 0:
                 print(f"[WARN] 発話者マーカー '{marker}' が見つかりませんでした。全文を送信します。")
-            elif marker_count > 30:
-                print(f"[INFO] 発話者マーカーの出現回数が {marker_count} 回 (>30) です。")
-                # 31回目のマーカーの位置を見つける
+            elif marker_count > 60:  # 30から60に変更
+                print(f"[INFO] 発話者マーカーの出現回数が {marker_count} 回 (>60) です。")
+                # 61回目のマーカーの位置を見つける
                 current_index = -1
                 found_count = 0
-                for i in range(30):
+                for i in range(60):  # 30から60に変更
                     current_index = transcript_text.find(marker, current_index + 1)
                     if current_index == -1:
-                        # 30回見つかる前に終端に達した場合 (予期せぬケース)
-                        print(f"[WARN] 30回目の発話者マーカーが見つかりませんでした（{i+1}回目まで検出）。全文を使用します。")
+                        # 60回見つかる前に終端に達した場合 (予期せぬケース)
+                        print(f"[WARN] 60回目の発話者マーカーが見つかりませんでした（{i+1}回目まで検出）。全文を使用します。")
                         text_for_title = transcript_text # 念のため全文に戻す
                         found_count = -1 # ループ脱出と後続処理のスキップフラグ
                         break
                     found_count = i + 1
                 
-                if found_count == 30: # 30回目が見つかった場合のみカット
+                if found_count == 60: # 60回目が見つかった場合のみカット
                     cutoff_index = current_index
                     text_for_title = transcript_text[:cutoff_index]
-                    print(f"[INFO] 30回目の '{marker}' 以降を削除して送信します (切り詰め後 {len(text_for_title)} 文字)。")
-                # 30回目が見つからなかった場合 (found_count == -1) は、text_for_title は全文のまま
+                    print(f"[INFO] 60回目の '{marker}' 以降を削除して送信します (切り詰め後 {len(text_for_title)} 文字)。")
             
-            else: # 1 <= marker_count <= 30 の場合
-                print(f"[INFO] 発話者マーカーの出現回数が {marker_count} 回 (<=30) のため、全文を使用します。")
+            else: # 1 <= marker_count <= 60 の場合
+                print(f"[INFO] 発話者マーカーの出現回数が {marker_count} 回 (<=60) のため、全文を使用します。")
             # --- 追加ここまで ---
             
             # 4. タイトル生成
