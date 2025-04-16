@@ -33,8 +33,8 @@ class ModelsConfig(BaseModel):
     gemini_minutes: str = "gemini-2.5-pro-exp-03-25"
     gemini_title: str = "gemini-2.0-flash"
     openai_chat: str = "o3-mini-2025-01-31"
-    openai_st: str = "gpt-4o"
-    openai_sttitle: str = "gpt-4o-mini"
+    openai_st: str = "gpt-4.1"
+    openai_sttitle: str = "gpt-4.1-mini"
     openai_audio: str = "gpt-4o-mini-transcribe"
     openai_4oaudio: str = "gpt-4o-audio-preview"
 
