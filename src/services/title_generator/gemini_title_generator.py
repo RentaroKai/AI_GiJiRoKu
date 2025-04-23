@@ -1,5 +1,5 @@
 from .base_title_generator import BaseTitleGenerator, TitleGenerationError
-from ...utils.gemini_api import GeminiAPI, TranscriptionError
+from ...utils.new_gemini_api import GeminiAPI, GeminiAPIError as TranscriptionError
 
 class GeminiTitleGenerator(BaseTitleGenerator):
     """Google Geminiを使用した会議タイトル生成クラス"""

@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional, Union
 
 from src.utils.Common_OpenAIAPI import generate_chat_response, APIError
-from src.utils.gemini_api import GeminiAPI
+from src.utils.new_gemini_api import GeminiAPI, GeminiAPIError
 from src.utils.config import config_manager
 from src.utils.prompt_manager import PromptManager
 
@@ -303,24 +303,31 @@ class GeminiSpeakerRemapper(SpeakerRemapperBase):
     """Gemini APIを使用した話者リマッパー"""
 
     def _get_speaker_mapping(self, transcript_text: str) -> Dict[str, str]:
-        """Gemini APIを使用して話者マッピングを取得"""
-        prompt = self.get_remap_prompt()
+        """
+        Gemini APIを使用して話者マッピングを取得する
 
+        Args:
+            transcript_text (str): 文字起こしテキスト
+
+        Returns:
+            Dict[str, str]: 話者名マッピング辞書
+        """
         try:
-            # Gemini APIインスタンスを作成
-            api = GeminiAPI()
+            self.gemini_api = GeminiAPI()
+            remap_prompt = self.get_remap_prompt()
+            combined_prompt = f"{remap_prompt}\n\n{transcript_text}"
 
-            # Gemini APIを使用してプロンプトと文字起こしテキストを送信
-            response = api.summarize_minutes(
-                text=transcript_text,
-                system_prompt=prompt
-            )
+            # Gemini APIを呼び出し
+            # summarize_minutes はテキスト生成全般に使える
+            ai_response = self.gemini_api.summarize_minutes(combined_prompt, "")
 
-            # レスポンスから話者マッピングを抽出
-            return self._parse_mapping_response(response)
-
+            # レスポンスをパースしてマッピングを返す
+            return self._parse_mapping_response(ai_response)
+        except GeminiAPIError as e:
+            logger.error(f"Gemini API呼び出し中にエラー: {str(e)}")
+            return {}
         except Exception as e:
-            logger.error(f"Gemini API呼び出し中にエラーが発生: {e}")
+            logger.error(f"話者マッピング取得中に予期せぬエラー: {str(e)}")
             return {}
 
 

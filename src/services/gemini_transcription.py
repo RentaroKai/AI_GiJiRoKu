@@ -5,8 +5,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from src.utils.gemini_api import GeminiAPI
-from src.services.base_transcription import TranscriptionService, TranscriptionError
+from src.utils.new_gemini_api import GeminiAPI, GeminiAPIError as TranscriptionError
+from src.services.base_transcription import TranscriptionService
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ class GeminiTranscriptionService(TranscriptionService):
         super().__init__(output_dir)
         self.config_path = config_path
         self.api_key = self._load_api_key()
-        self.gemini_api = GeminiAPI(self.api_key)
+        self.gemini_api = GeminiAPI(api_key=self.api_key)
         self.system_prompt = self._load_system_prompt()
     
     def _load_api_key(self) -> str:
@@ -117,7 +117,7 @@ class GeminiTranscriptionService(TranscriptionService):
         logger.info("Geminiで音声認識・整形を開始")
         
         try:
-            # 音声ファイルを文字列に変換
+            # 音声ファイルを文字列に変換 (互換性のため transcribe_audio を使用)
             formatted_text = self.gemini_api.transcribe_audio(str(audio_file))
             
             if not formatted_text:

@@ -1,6 +1,6 @@
 import logging
 from typing import Optional
-from ..utils.gemini_api import GeminiAPI, TranscriptionError
+from ..utils.new_gemini_api import GeminiAPI, GeminiAPIError as TranscriptionError
 from ..utils.summarizer import Summarizer
 #from ..utils.config import config_manager
 
