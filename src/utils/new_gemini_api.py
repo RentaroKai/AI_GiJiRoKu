@@ -244,9 +244,9 @@ class GeminiAPI:
             
             # 応答を生成（ストリーミングまたは通常）
             if stream:
-                return self._transcribe_stream(contents, generation_config)
+                return self._transcribe_stream(contents, config=generation_config)
             else:
-                return self._transcribe_normal(contents, generation_config)
+                return self._transcribe_normal(contents, config=generation_config)
                 
         except Exception as e:
             error_msg = f"{media_type.capitalize()}ファイルの文字起こしに失敗しました: {str(e)}"
@@ -285,12 +285,12 @@ class GeminiAPI:
             logger.error(error_msg)
             raise GeminiAPIError(error_msg)
 
-    def _transcribe_stream(self, contents: List, generation_config: Dict) -> Iterator[str]:
+    def _transcribe_stream(self, contents: List, config: Dict) -> Iterator[str]:
         """文字起こしをストリーミングモードで実行
         
         Args:
             contents (List): コンテンツリスト
-            generation_config (Dict): 生成設定
+            config (Dict): 生成設定
             
         Returns:
             Iterator[str]: 文字起こしテキストのストリーム
@@ -300,7 +300,7 @@ class GeminiAPI:
             for chunk in self.client.models.generate_content_stream(
                 model=self.transcription_model,
                 contents=contents,
-                generation_config=generation_config,
+                config=config,
             ):
                 if hasattr(chunk, 'text') and chunk.text:
                     yield chunk.text
@@ -309,12 +309,12 @@ class GeminiAPI:
             logger.error(error_msg)
             raise GeminiAPIError(error_msg)
 
-    def _transcribe_normal(self, contents: List, generation_config: Dict) -> str:
+    def _transcribe_normal(self, contents: List, config: Dict) -> str:
         """文字起こしを通常モードで実行
         
         Args:
             contents (List): コンテンツリスト
-            generation_config (Dict): 生成設定
+            config (Dict): 生成設定
             
         Returns:
             str: 文字起こしテキスト
@@ -324,7 +324,7 @@ class GeminiAPI:
             response = self.client.models.generate_content(
                 model=self.transcription_model,
                 contents=contents,
-                generation_config=generation_config,
+                config=config,
             )
             
             if hasattr(response, 'text') and response.text:
@@ -374,7 +374,7 @@ class GeminiAPI:
             response = self.client.models.generate_content(
                 model=self.title_model,
                 contents=contents,
-                generation_config=title_config,
+                config=title_config,
             )
             
             if not hasattr(response, 'text') or not response.text:
@@ -449,7 +449,7 @@ class GeminiAPI:
             response = self.client.models.generate_content(
                 model=self.minutes_model,
                 contents=contents,
-                generation_config=minutes_config,
+                config=minutes_config,
             )
             
             if not hasattr(response, 'text') or not response.text:
