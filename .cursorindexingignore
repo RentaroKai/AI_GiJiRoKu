@@ -80,3 +80,7 @@ meeting古い.py
 画像
 
 envchecker
+
+
+*.png
+*.psd
